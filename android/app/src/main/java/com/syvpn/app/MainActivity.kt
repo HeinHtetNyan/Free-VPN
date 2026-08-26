@@ -71,12 +71,16 @@ class MainActivity : ComponentActivity() {
     private var connectedNowCount by mutableStateOf<Int?>(null)
     private var locationLatencies by mutableStateOf<Map<String, Int?>>(emptyMap())
     private var reportState by mutableStateOf<ReportUiState>(ReportUiState.Idle)
+    private lateinit var deviceContext: DeviceContext
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         apiClient = ApiClient(ApiClient.DEV_BASE_URL)
         vpnManager = VpnConnectionManager(this)
+        // Captured once — carrier/device/OS don't change mid-session, and
+        // capturing fresh on every report would just repeat the same work.
+        deviceContext = DeviceContext.capture(this)
 
         // The tunnel is a real system VpnService, independent of this
         // Activity's lifecycle — it keeps running (or not) across
@@ -130,6 +134,7 @@ class MainActivity : ComponentActivity() {
                     connectedNowCount = connectedNowCount,
                     locationLatencies = locationLatencies,
                     reportState = reportState,
+                    deviceContext = deviceContext,
                     onSubmitReport = ::onSubmitReport,
                     onDismissReport = { reportState = ReportUiState.Idle },
                     onConnectClick = ::onConnectClick,
@@ -220,15 +225,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun onSubmitReport(message: String) {
+    private fun onSubmitReport(message: String, carrier: String) {
         val token = authToken ?: run {
             reportState = ReportUiState.Error("Not ready yet — try again in a moment")
             return
         }
         reportState = ReportUiState.Sending
+        // carrier is the user-confirmed/corrected chip selection, not
+        // necessarily what auto-detection found — it's the one field the
+        // whole feature depends on being accurate, so it overrides
+        // deviceContext's raw auto-detected ispName rather than the reverse.
+        val context = deviceContext.copy(ispName = carrier)
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val context = DeviceContext.capture(this@MainActivity)
                 apiClient.submitReport(token, message.trim(), context)
                 launch(Dispatchers.Main) { reportState = ReportUiState.Sent }
             } catch (e: Exception) {

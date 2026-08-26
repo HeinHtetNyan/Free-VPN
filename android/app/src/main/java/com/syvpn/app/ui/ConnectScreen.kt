@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,6 +30,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
@@ -53,6 +55,7 @@ import androidx.compose.ui.window.Dialog
 import com.syvpn.app.R
 import com.syvpn.app.ads.AdsterraBannerAd
 import com.syvpn.app.data.ApiClient
+import com.syvpn.app.data.DeviceContext
 import com.syvpn.app.ui.theme.LocalStatusColors
 
 sealed interface ReportUiState {
@@ -85,7 +88,8 @@ fun ConnectScreen(
     connectedNowCount: Int?,
     locationLatencies: Map<String, Int?>,
     reportState: ReportUiState,
-    onSubmitReport: (String) -> Unit,
+    deviceContext: DeviceContext,
+    onSubmitReport: (String, String) -> Unit,
     onDismissReport: () -> Unit,
     onConnectClick: () -> Unit,
     onDisconnectClick: () -> Unit,
@@ -158,7 +162,7 @@ fun ConnectScreen(
                 }
             }
 
-            ReportIssueEntry(reportState, onSubmitReport, onDismissReport)
+            ReportIssueEntry(reportState, deviceContext, onSubmitReport, onDismissReport)
         }
     }
 }
@@ -166,24 +170,39 @@ fun ConnectScreen(
 /** Report an issue — the app's feedback channel for things server-side
  * metrics can't see, chiefly "this ISP/carrier blocks the VPN outright"
  * (a connection an ISP blocks never even registers as a WireGuard peer).
- * Auto-attaches technical context (see MainActivity/DeviceContext) so a
- * report is actionable without the user needing to know what to include. */
+ * Carrier is a plain typed field — Myanmar has too many ISPs/MVNOs (MPT,
+ * Ooredoo, ATOM, Mytel, and various resold/roaming names) to enumerate as
+ * fixed options, so the user just types what they're on. */
 @Composable
-private fun ReportIssueEntry(reportState: ReportUiState, onSubmit: (String) -> Unit, onDismiss: () -> Unit) {
+private fun ReportIssueEntry(
+    reportState: ReportUiState,
+    deviceContext: DeviceContext,
+    onSubmit: (String, String) -> Unit,
+    onDismiss: () -> Unit,
+) {
     var dialogOpen by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
+    var carrierText by remember { mutableStateOf("") }
 
-    TextButton(onClick = { dialogOpen = true }) {
+    OutlinedButton(
+        onClick = { dialogOpen = true },
+        modifier = Modifier.fillMaxWidth().height(48.dp),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+    ) {
         Text(
             "Report an issue",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelLarge,
         )
     }
 
     LaunchedEffect(reportState) {
         if (reportState is ReportUiState.Sent) {
             message = ""
+            carrierText = ""
             dialogOpen = false
         }
     }
@@ -195,31 +214,78 @@ private fun ReportIssueEntry(reportState: ReportUiState, onSubmit: (String) -> U
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
                     .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Text(
                     "Report an issue",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                Text(
-                    "e.g. \"[Carrier] blocks this app\", or describe what went wrong. Your device and network info is included automatically.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                OutlinedTextField(
-                    value = message,
-                    onValueChange = { message = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 4,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        "NETWORK / CARRIER",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OutlinedTextField(
+                        value = carrierText,
+                        onValueChange = { carrierText = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("e.g. MPT, Ooredoo, ATOM, Mytel, Wi-Fi…") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                    )
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        "DEVICE",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                    ) {
+                        Text(
+                            "${deviceContext.deviceModel} · Android ${deviceContext.osVersion} · App v${deviceContext.appVersion}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        "WHAT HAPPENED",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OutlinedTextField(
+                        value = message,
+                        onValueChange = { message = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("e.g. \"Won't connect at all\", \"Connects but very slow\"…") },
+                        minLines = 4,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                    )
+                }
+
                 if (reportState is ReportUiState.Error) {
                     Text(
                         reportState.message,
@@ -236,7 +302,7 @@ private fun ReportIssueEntry(reportState: ReportUiState, onSubmit: (String) -> U
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
-                        onClick = { onSubmit(message) },
+                        onClick = { onSubmit(message, carrierText.trim()) },
                         enabled = message.isNotBlank() && reportState !is ReportUiState.Sending,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
