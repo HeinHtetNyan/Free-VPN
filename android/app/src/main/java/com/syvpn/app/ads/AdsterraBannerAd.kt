@@ -38,6 +38,14 @@ fun AdsterraBannerAd(modifier: Modifier = Modifier) {
                 // for however long the ad script takes to load (or if it
                 // fails to load at all).
                 setBackgroundColor(AndroidColor.TRANSPARENT)
+                // A hardware-accelerated WebView keeps its own compositor
+                // layer alongside Compose's — when the ad creative loads/
+                // resizes, that layer can resync and blank the *entire*
+                // window for a frame or two (well-documented WebView
+                // quirk, especially on MIUI). Software rendering avoids the
+                // separate layer entirely, at the cost of slightly slower
+                // ad rendering — an easy trade for a 50dp banner.
+                setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 loadDataWithBaseURL(

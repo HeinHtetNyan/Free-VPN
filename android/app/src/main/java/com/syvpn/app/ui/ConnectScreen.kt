@@ -52,11 +52,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.syvpn.app.BuildConfig
 import com.syvpn.app.R
 import com.syvpn.app.ads.AdsterraBannerAd
 import com.syvpn.app.data.ApiClient
 import com.syvpn.app.data.DeviceContext
+import com.syvpn.app.ui.theme.DarkBackground
 import com.syvpn.app.ui.theme.LocalStatusColors
+import kotlinx.coroutines.delay
 
 sealed interface ReportUiState {
     data object Idle : ReportUiState
@@ -94,8 +97,26 @@ fun ConnectScreen(
     onConnectClick: () -> Unit,
     onDisconnectClick: () -> Unit,
 ) {
+    // Inserting the ad's native WebView into the Compose tree costs a
+    // layout pass that briefly blanks the whole window (see
+    // AdsterraBannerAd's docs on the underlying WebView quirk) — delaying
+    // that insertion until just after the real screen has already drawn
+    // means that hitch lands on an empty placeholder, not on the screen the
+    // user is watching open.
+    var showAd by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(120)
+        showAd = true
+    }
+
     Scaffold(
-        bottomBar = { AdsterraBannerAd(modifier = Modifier.fillMaxWidth()) },
+        bottomBar = {
+            if (showAd) {
+                AdsterraBannerAd(modifier = Modifier.fillMaxWidth())
+            } else {
+                Spacer(modifier = Modifier.fillMaxWidth().height(50.dp).background(DarkBackground))
+            }
+        },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -163,6 +184,19 @@ fun ConnectScreen(
             }
 
             ReportIssueEntry(reportState, deviceContext, onSubmitReport, onDismissReport)
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Sourced from BuildConfig.VERSION_NAME (android/app/build.gradle.kts
+            // "versionName") — the one place that ever needs editing; this and
+            // every report's device-info payload (DeviceContext) both read the
+            // same value, so they can't drift apart.
+            Text(
+                text = "v${BuildConfig.VERSION_NAME}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
         }
     }
 }
