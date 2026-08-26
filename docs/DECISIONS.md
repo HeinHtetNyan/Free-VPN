@@ -4,6 +4,17 @@ Newest first. Each entry: what was decided, why, and what it rules out — so we
 
 ---
 
+### 2026-08-27 — Verified on a real physical device over wireless adb; two real bugs found and fixed
+
+User asked to install the app on their own phone rather than an emulator. Used wireless `adb` (already paired, auto-discovered via `adb mdns services`) — no cable, no emulator. This is meaningfully stronger verification than `infra/local-test/`: it exercises the real `VpnService`/`GoBackend` Android integration and the real system permission dialog, neither of which a Docker container touches.
+
+First real end-to-end result: a genuine WireGuard handshake through the real LocalToNet relay, with actual growing byte counters on both sides, and a real page load through the tunnel confirmed in a browser (status bar VPN key icon present). But getting there required fixing two real bugs the app shipped with, caught only by this real test:
+
+1. **Crash on connect**: `MainActivity.onConnectClick()` called the blocking `vpnManager.connect()` inside a nested coroutine `launch{}` whose exceptions weren't covered by the enclosing `try/catch` (a `launch{}` starts an independent child coroutine — an outer `try` around the `launch` call doesn't catch what happens inside it). A `BackendException`/`TimeoutException` from the WireGuard library therefore crashed the whole app instead of surfacing a UI error. Fixed by keeping the risky call inside the same coroutine body as its own `try/catch`, only switching to `Dispatchers.Main` for UI-only work (launching the permission intent, updating state).
+2. **Premature "Connected" state**: the UI set `ConnectionUiState.Connected` immediately after starting the connect flow, even in the branch that still needed the user to answer the system VPN permission dialog — so the screen showed "Connected via singapore" before the dialog had even been answered.
+
+Also fixed as a side effect of doing real rebuild-and-reinstall cycles: each Docker build run was generating a **fresh random debug-signing keystore** (no persisted `~/.gradle`/`~/.android` across ephemeral container runs), so a rebuilt APK couldn't be installed over the previous one without `adb uninstall` first (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`). Generated and committed `android/app/debug.keystore`, pinned explicitly in `build.gradle.kts`'s `signingConfigs.debug` — every build now signs identically. Standard well-known debug alias/password, not a secret.
+
 ### 2026-08-27 — Backend public hostname: sy-api.heinh.dev, not sawyuntech.com
 
 Needed a domain for the backend's Cloudflare Tunnel. Deliberately did not reuse `sawyuntech.com` (already used for other apps, but it's the Saw Yun LLC company domain — reusing it would undercut the earlier app-naming decision to keep this project disconnected from that brand). User's own `heinh.dev` (already used for TK Plastic Press/BonBon/code-server, unrelated to any company brand) instead. Tunnel created via API (id `97787a8f-a3e5-4a01-9d19-797e843790da`), DNS record `sy-api.heinh.dev` → proxied CNAME to the tunnel, ingress routes to `http://localhost:8080` (matches `backend/`'s default `PORT`). Not yet running — `tunnel/.env` has the real token locally, waiting on the repo being pushed/cloned onto the VPS.

@@ -33,12 +33,25 @@ class MainActivity : ComponentActivity() {
     private val vpnPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            pendingConfig?.let { vpnManager.connect(it) }
+        val config = pendingConfig
+        val locationId = selectedLocationId
+        pendingConfig = null
+        if (result.resultCode == RESULT_OK && config != null) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    vpnManager.connect(config)
+                    launch(Dispatchers.Main) {
+                        connectionState = ConnectionUiState.Connected(locationId ?: "")
+                    }
+                } catch (e: Exception) {
+                    launch(Dispatchers.Main) {
+                        connectionState = ConnectionUiState.Error(e.message ?: e.toString())
+                    }
+                }
+            }
         } else {
             connectionState = ConnectionUiState.Error("VPN permission denied")
         }
-        pendingConfig = null
     }
 
     private var locations by mutableStateOf<List<ApiClient.Location>>(emptyList())
@@ -96,19 +109,23 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val result = apiClient.connect(token, locationId)
-                launch(Dispatchers.Main) {
-                    val permissionIntent: Intent? = vpnManager.permissionIntent(this@MainActivity)
-                    if (permissionIntent != null) {
-                        pendingConfig = result.config
-                        vpnPermissionLauncher.launch(permissionIntent)
-                    } else {
-                        vpnManager.connect(result.config)
+                val permissionIntent: Intent? = vpnManager.permissionIntent(this@MainActivity)
+                if (permissionIntent != null) {
+                    // Not connected yet — still waiting on the user to grant
+                    // VPN permission in the system dialog. vpnPermissionLauncher's
+                    // callback drives the actual connect() + Connected state
+                    // from here once (if) that's granted.
+                    pendingConfig = result.config
+                    launch(Dispatchers.Main) { vpnPermissionLauncher.launch(permissionIntent) }
+                } else {
+                    vpnManager.connect(result.config)
+                    launch(Dispatchers.Main) {
+                        connectionState = ConnectionUiState.Connected(locationId)
                     }
-                    connectionState = ConnectionUiState.Connected(locationId)
                 }
             } catch (e: Exception) {
                 launch(Dispatchers.Main) {
-                    connectionState = ConnectionUiState.Error(e.message ?: "Unknown error")
+                    connectionState = ConnectionUiState.Error(e.message ?: e.toString())
                 }
             }
         }

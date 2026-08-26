@@ -76,12 +76,7 @@ class ApiClient(private val baseUrl: String) {
         Exception("API error $statusCode: $body")
 
     companion object {
-        /**
-         * TODO: replace with the real deployed control-plane URL once a
-         * central server exists (docs/OPEN_QUESTIONS.md). 10.0.2.2 is the
-         * Android emulator's alias for the host machine's localhost, for
-         * testing against `go run ./cmd/server` on your dev machine.
-         */
-        const val DEV_BASE_URL = "http://10.0.2.2:8090"
+        // Real deployed control plane (docs/DECISIONS.md 2026-08-27).
+        const val DEV_BASE_URL = "https://sy-api.heinh.dev"
     }
 }

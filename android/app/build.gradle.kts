@@ -35,6 +35,21 @@ android {
         )
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // Pinned to a committed keystore instead of each environment's
+            // (or each ephemeral Docker build's) auto-generated one — a
+            // debug build from Android Studio and one from the Docker
+            // pipeline must produce the SAME signature, or installing one
+            // over the other fails with INSTALL_FAILED_UPDATE_INCOMPATIBLE.
+            // Standard well-known debug alias/passwords, not a secret.
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
