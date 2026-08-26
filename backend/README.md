@@ -2,6 +2,8 @@
 
 Go control plane. See [`../docs/BACKEND.md`](../docs/BACKEND.md) for responsibilities, planned structure, and open decisions (DB choice, auth strategy) before adding real logic here.
 
+Deployed to production at `https://sy-api.heinh.dev` (Shared VPS, `/home/appbox/SY/backend/`). Pushes to `main` touching this directory auto-deploy via `.github/workflows/deploy.yml`.
+
 ## Run
 
 Requires Go 1.22+. (This dev environment didn't have Go installed system-wide — it was installed to `~/go-sdk` and added to `PATH` via `~/.bashrc`/`~/.profile`; open a new shell or `export PATH=$HOME/go-sdk/bin:$PATH` if `go` isn't found.)
