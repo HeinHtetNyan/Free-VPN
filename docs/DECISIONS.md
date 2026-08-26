@@ -4,6 +4,10 @@ Newest first. Each entry: what was decided, why, and what it rules out — so we
 
 ---
 
+### 2026-08-27 — Backend public hostname: sy-api.heinh.dev, not sawyuntech.com
+
+Needed a domain for the backend's Cloudflare Tunnel. Deliberately did not reuse `sawyuntech.com` (already used for other apps, but it's the Saw Yun LLC company domain — reusing it would undercut the earlier app-naming decision to keep this project disconnected from that brand). User's own `heinh.dev` (already used for TK Plastic Press/BonBon/code-server, unrelated to any company brand) instead. Tunnel created via API (id `97787a8f-a3e5-4a01-9d19-797e843790da`), DNS record `sy-api.heinh.dev` → proxied CNAME to the tunnel, ingress routes to `http://localhost:8080` (matches `backend/`'s default `PORT`). Not yet running — `tunnel/.env` has the real token locally, waiting on the repo being pushed/cloned onto the VPS.
+
 ### 2026-08-27 — Central server hosting: the existing Shared VPS, project kept under a non-VPN folder name
 
 Used the already-owned Shared VPS (`hhn.infinity.appboxes.co`, see memory) instead of provisioning a new box — no extra cost, and it already runs several other unrelated apps (BonBon POS, RateBridge, n8n, a portfolio site) under isolated Docker networks. Project files placed at `/home/appbox/SY/`, deliberately not named anything VPN-related — same operational-precaution reasoning as the `com.syvpn.app` naming decision below, though it's a light touch: the folder name doesn't hide the running `wg0` interface, listening UDP port, or `wireguard` package from anyone who actually inspects the host (there just isn't anyone else with shell access to this box to notice).
