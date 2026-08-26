@@ -21,6 +21,7 @@ func (s *Server) Router() http.Handler {
 	mux.HandleFunc("GET /locations", auth.Require(s.Users, s.handleListLocations))
 	mux.HandleFunc("POST /connect", auth.Require(s.Users, s.handleConnect))
 	mux.HandleFunc("GET /stats", auth.Require(s.Users, s.handleStats))
+	mux.HandleFunc("POST /report", auth.Require(s.Users, s.handleReport))
 
 	return mux
 }

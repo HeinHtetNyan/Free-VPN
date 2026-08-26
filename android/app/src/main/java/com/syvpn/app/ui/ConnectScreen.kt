@@ -23,26 +23,44 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.syvpn.app.R
 import com.syvpn.app.ads.AdsterraBannerAd
 import com.syvpn.app.data.ApiClient
 import com.syvpn.app.ui.theme.LocalStatusColors
+
+sealed interface ReportUiState {
+    data object Idle : ReportUiState
+    data object Sending : ReportUiState
+    data object Sent : ReportUiState
+    data class Error(val message: String) : ReportUiState
+}
 
 sealed interface ConnectionUiState {
     data object Idle : ConnectionUiState
@@ -66,6 +84,9 @@ fun ConnectScreen(
     connectionState: ConnectionUiState,
     connectedNowCount: Int?,
     locationLatencies: Map<String, Int?>,
+    reportState: ReportUiState,
+    onSubmitReport: (String) -> Unit,
+    onDismissReport: () -> Unit,
     onConnectClick: () -> Unit,
     onDisconnectClick: () -> Unit,
 ) {
@@ -134,6 +155,104 @@ fun ConnectScreen(
                         latencyMs = locationLatencies[location.id],
                         onClick = { onSelectLocation(location.id) },
                     )
+                }
+            }
+
+            ReportIssueEntry(reportState, onSubmitReport, onDismissReport)
+        }
+    }
+}
+
+/** Report an issue — the app's feedback channel for things server-side
+ * metrics can't see, chiefly "this ISP/carrier blocks the VPN outright"
+ * (a connection an ISP blocks never even registers as a WireGuard peer).
+ * Auto-attaches technical context (see MainActivity/DeviceContext) so a
+ * report is actionable without the user needing to know what to include. */
+@Composable
+private fun ReportIssueEntry(reportState: ReportUiState, onSubmit: (String) -> Unit, onDismiss: () -> Unit) {
+    var dialogOpen by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf("") }
+
+    TextButton(onClick = { dialogOpen = true }) {
+        Text(
+            "Report an issue",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    LaunchedEffect(reportState) {
+        if (reportState is ReportUiState.Sent) {
+            message = ""
+            dialogOpen = false
+        }
+    }
+
+    if (dialogOpen) {
+        Dialog(onDismissRequest = { dialogOpen = false; onDismiss() }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    "Report an issue",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    "e.g. \"[Carrier] blocks this app\", or describe what went wrong. Your device and network info is included automatically.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = message,
+                    onValueChange = { message = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 4,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    ),
+                )
+                if (reportState is ReportUiState.Error) {
+                    Text(
+                        reportState.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalStatusColors.current.error,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = { dialogOpen = false; onDismiss() }) {
+                        Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = { onSubmit(message) },
+                        enabled = message.isNotBlank() && reportState !is ReportUiState.Sending,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                        ),
+                    ) {
+                        if (reportState is ReportUiState.Sending) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                            )
+                        } else {
+                            Text("Send")
+                        }
+                    }
                 }
             }
         }

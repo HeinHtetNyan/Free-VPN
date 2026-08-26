@@ -10,10 +10,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import com.syvpn.app.data.ApiClient
+import com.syvpn.app.data.DeviceContext
 import com.syvpn.app.data.DeviceIdentity
 import com.syvpn.app.data.LatencyChecker
 import com.syvpn.app.ui.ConnectionUiState
 import com.syvpn.app.ui.ConnectScreen
+import com.syvpn.app.ui.ReportUiState
 import com.syvpn.app.ui.theme.VpnAppTheme
 import com.syvpn.app.vpn.VpnConnectionManager
 import com.wireguard.android.backend.Tunnel
@@ -68,6 +70,7 @@ class MainActivity : ComponentActivity() {
     private var connectionState by mutableStateOf<ConnectionUiState>(ConnectionUiState.Idle)
     private var connectedNowCount by mutableStateOf<Int?>(null)
     private var locationLatencies by mutableStateOf<Map<String, Int?>>(emptyMap())
+    private var reportState by mutableStateOf<ReportUiState>(ReportUiState.Idle)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -126,6 +129,9 @@ class MainActivity : ComponentActivity() {
                     connectionState = connectionState,
                     connectedNowCount = connectedNowCount,
                     locationLatencies = locationLatencies,
+                    reportState = reportState,
+                    onSubmitReport = ::onSubmitReport,
+                    onDismissReport = { reportState = ReportUiState.Idle },
                     onConnectClick = ::onConnectClick,
                     onDisconnectClick = ::onDisconnectClick,
                 )
@@ -209,6 +215,25 @@ class MainActivity : ComponentActivity() {
             } catch (e: Exception) {
                 launch(Dispatchers.Main) {
                     connectionState = ConnectionUiState.Error(e.message ?: e.toString())
+                }
+            }
+        }
+    }
+
+    private fun onSubmitReport(message: String) {
+        val token = authToken ?: run {
+            reportState = ReportUiState.Error("Not ready yet — try again in a moment")
+            return
+        }
+        reportState = ReportUiState.Sending
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val context = DeviceContext.capture(this@MainActivity)
+                apiClient.submitReport(token, message.trim(), context)
+                launch(Dispatchers.Main) { reportState = ReportUiState.Sent }
+            } catch (e: Exception) {
+                launch(Dispatchers.Main) {
+                    reportState = ReportUiState.Error(e.message ?: "Could not send — try again")
                 }
             }
         }

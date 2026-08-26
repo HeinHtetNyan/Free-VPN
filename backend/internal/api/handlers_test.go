@@ -36,7 +36,7 @@ func newTestServer(t *testing.T) *Server {
 	// expected to fail cleanly in tests (no real interface exists here
 	// either), matching the "best-effort" behavior documented in
 	// docs/BACKEND.md.
-	return NewServer(userStore, peerStore, locs, "wg-test-nonexistent", DefaultServerPublicKeyPlaceholder, nil)
+	return NewServer(userStore, peerStore, locs, "wg-test-nonexistent", DefaultServerPublicKeyPlaceholder, nil, nil)
 }
 
 func TestHealthEndpoint(t *testing.T) {

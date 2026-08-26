@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"sy-vpn-backend/internal/auth"
+	"sy-vpn-backend/internal/reports"
 	"sy-vpn-backend/internal/servers"
 	"sy-vpn-backend/internal/stats"
 	"sy-vpn-backend/internal/users"
@@ -27,11 +28,12 @@ type Server struct {
 	// Stats is nil in tests/environments that don't wire one up (see
 	// cmd/server/main.go) — handleStats degrades to a zero count rather than
 	// panicking or erroring, since "no data yet" is a normal startup state.
-	Stats *stats.Collector
+	Stats   *stats.Collector
+	Reports *reports.Store
 }
 
-func NewServer(userStore *users.Store, peerStore *servers.PeerStore, locations []servers.Location, wgIfaceName, serverPublicKey string, statsCollector *stats.Collector) *Server {
-	return &Server{Users: userStore, Peers: peerStore, Locations: locations, WireGuardIfaceName: wgIfaceName, ServerPublicKey: serverPublicKey, Stats: statsCollector}
+func NewServer(userStore *users.Store, peerStore *servers.PeerStore, locations []servers.Location, wgIfaceName, serverPublicKey string, statsCollector *stats.Collector, reportStore *reports.Store) *Server {
+	return &Server{Users: userStore, Peers: peerStore, Locations: locations, WireGuardIfaceName: wgIfaceName, ServerPublicKey: serverPublicKey, Stats: statsCollector, Reports: reportStore}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -144,6 +146,48 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 		"public_key":  keys.PublicKey,
 		"user_id":     user.ID,
 	})
+}
+
+// handleReport lets a user submit a free-text issue report (e.g. "MPT
+// blocks this VPN"), with client-supplied technical context attached —
+// this is the main signal for ISP-level blocking in Myanmar, which
+// server-side connection metrics alone can't see: a connection an ISP
+// blocks outright never even shows up as a WireGuard peer.
+func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthenticated")
+		return
+	}
+
+	var body struct {
+		Message     string `json:"message"`
+		IspName     string `json:"isp_name"`
+		NetworkType string `json:"network_type"`
+		DeviceModel string `json:"device_model"`
+		OsVersion   string `json:"os_version"`
+		AppVersion  string `json:"app_version"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Message == "" {
+		writeError(w, http.StatusBadRequest, "message is required")
+		return
+	}
+
+	if s.Reports == nil {
+		writeError(w, http.StatusServiceUnavailable, "reports not available")
+		return
+	}
+
+	err := s.Reports.Create(reports.Report{
+		UserID: user.ID, Message: body.Message, IspName: body.IspName, NetworkType: body.NetworkType,
+		DeviceModel: body.DeviceModel, OsVersion: body.OsVersion, AppVersion: body.AppVersion,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not save report")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 // handleStats is deliberately aggregate-only — a per-user breakdown belongs

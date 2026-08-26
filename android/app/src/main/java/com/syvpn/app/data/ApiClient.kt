@@ -41,6 +41,19 @@ class ApiClient(private val baseUrl: String) {
         return response.getInt("connected_now")
     }
 
+    /** POST /report — free-text issue report with auto-captured technical
+     * context, mainly for spotting ISP-level blocking (see DeviceContext). */
+    fun submitReport(token: String, message: String, context: DeviceContext) {
+        val body = JSONObject()
+            .put("message", message)
+            .put("isp_name", context.ispName)
+            .put("network_type", context.networkType)
+            .put("device_model", context.deviceModel)
+            .put("os_version", context.osVersion)
+            .put("app_version", context.appVersion)
+        post("/report", body, token)
+    }
+
     /** POST /connect — requests a fresh WireGuard config for locationId. */
     fun connect(token: String, locationId: String): ConnectResult {
         val body = JSONObject().put("location_id", locationId)

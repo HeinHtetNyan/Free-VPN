@@ -8,6 +8,7 @@ import (
 
 	"sy-vpn-backend/internal/api"
 	"sy-vpn-backend/internal/reporter"
+	"sy-vpn-backend/internal/reports"
 	"sy-vpn-backend/internal/servers"
 	"sy-vpn-backend/internal/stats"
 	"sy-vpn-backend/internal/users"
@@ -35,6 +36,12 @@ func main() {
 	}
 	defer peerStore.Close()
 
+	reportStore, err := reports.NewStore(dbPath)
+	if err != nil {
+		log.Fatalf("opening report store at %s: %v", dbPath, err)
+	}
+	defer reportStore.Close()
+
 	wgIface := os.Getenv("WG_INTERFACE")
 	if wgIface == "" {
 		wgIface = "wg0"
@@ -52,17 +59,19 @@ func main() {
 	statsCollector := stats.NewCollector(wgIface, peerStore)
 	go statsCollector.Run(30*time.Second, nil)
 
-	// Optional: pushes usage snapshots to a separate admin dashboard project
-	// (Activation-Licenses) — no-ops if unset. See internal/reporter.
+	// Optional: pushes usage snapshots and undelivered issue reports to a
+	// separate admin dashboard project (Activation-Licenses) — no-ops if
+	// unset. See internal/reporter.
 	go reporter.Run(
 		statsCollector,
+		reportStore,
 		os.Getenv("ADMIN_INGEST_URL"),
 		os.Getenv("ADMIN_INGEST_TOKEN"),
 		60*time.Second,
 		nil,
 	)
 
-	server := api.NewServer(userStore, peerStore, locations, wgIface, serverPublicKey, statsCollector)
+	server := api.NewServer(userStore, peerStore, locations, wgIface, serverPublicKey, statsCollector, reportStore)
 
 	port := os.Getenv("PORT")
 	if port == "" {
