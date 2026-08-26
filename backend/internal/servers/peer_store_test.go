@@ -1,0 +1,62 @@
+package servers
+
+import (
+	"path/filepath"
+	"testing"
+)
+
+func newTestPeerStore(t *testing.T) *PeerStore {
+	t.Helper()
+	s, err := NewPeerStore(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("NewPeerStore: %v", err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	return s
+}
+
+func TestAllocateIP_IsIdempotentPerKey(t *testing.T) {
+	s := newTestPeerStore(t)
+
+	first, err := s.AllocateIP("pubkey-a")
+	if err != nil {
+		t.Fatalf("first allocation: %v", err)
+	}
+
+	second, err := s.AllocateIP("pubkey-a")
+	if err != nil {
+		t.Fatalf("second allocation: %v", err)
+	}
+
+	if first != second {
+		t.Fatalf("expected same IP for repeated allocation, got %s vs %s", first, second)
+	}
+}
+
+func TestAllocateIP_DistinctKeysGetDistinctIPs(t *testing.T) {
+	s := newTestPeerStore(t)
+
+	a, _ := s.AllocateIP("pubkey-a")
+	b, _ := s.AllocateIP("pubkey-b")
+
+	if a == b {
+		t.Fatalf("expected distinct IPs, both got %s", a)
+	}
+}
+
+func TestLoadLocations(t *testing.T) {
+	locs, err := LoadLocations()
+	if err != nil {
+		t.Fatalf("LoadLocations: %v", err)
+	}
+	if len(locs) == 0 {
+		t.Fatal("expected at least one location")
+	}
+
+	if _, ok := FindLocation(locs, locs[0].ID); !ok {
+		t.Fatalf("FindLocation could not find %q which LoadLocations just returned", locs[0].ID)
+	}
+	if _, ok := FindLocation(locs, "definitely-not-a-real-location"); ok {
+		t.Fatal("FindLocation should not find a nonexistent location")
+	}
+}

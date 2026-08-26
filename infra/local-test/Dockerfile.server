@@ -1,0 +1,11 @@
+# The test WireGuard "central server" — real kernel WireGuard interface,
+# real NAT/forwarding rules, running the actual backend binary. See README.md
+# in this folder for what this proves and why Docker-specific sysctl
+# restrictions here are not a preview of production (docs/ARCHITECTURE.md's
+# real central server runs directly on a VPS, not in a container).
+FROM alpine:3.20
+RUN apk add --no-cache wireguard-tools iptables ip6tables iproute2 curl bash
+COPY sy-vpn-server /usr/local/bin/sy-vpn-server
+COPY entrypoint-server.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh /usr/local/bin/sy-vpn-server
+ENTRYPOINT ["/entrypoint.sh"]

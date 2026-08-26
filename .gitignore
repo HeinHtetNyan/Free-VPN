@@ -1,0 +1,12 @@
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local build and runtime artifacts
+android/**/build/
+android/.gradle/
+backend/vpnapp-server
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal

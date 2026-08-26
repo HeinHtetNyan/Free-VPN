@@ -1,0 +1,4 @@
+<resources>
+    <!-- Placeholder brand color — revisit once branding is decided (../../../docs/OPEN_QUESTIONS.md). -->
+    <color name="ic_launcher_background">#1A73E8</color>
+</resources>

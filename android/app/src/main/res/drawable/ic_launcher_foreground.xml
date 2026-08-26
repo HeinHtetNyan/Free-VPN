@@ -1,0 +1,16 @@
+<!-- Placeholder mark: a shield with a checkmark, standard "protected connection"
+     VPN motif. Revisit once real branding/name is decided
+     (../../../docs/OPEN_QUESTIONS.md) — this exists so the app isn't shipping
+     Android's default icon, not as a final logo. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,26 L76,35 L76,58 C76,71.5 66.8,81.6 54,85 C41.2,81.6 32,71.5 32,58 L32,35 Z" />
+    <path
+        android:fillColor="#1A73E8"
+        android:pathData="M44,57 L51,64 L66,47 L69.5,50.2 L51,70.5 L40.5,60 Z" />
+</vector>

@@ -1,0 +1,16 @@
+# Example mapping of advertised app location -> LocalToNet relay region -> central server.
+# Not real values yet — fill in once LocalToNet account + central server(s) exist.
+# Consumed conceptually by backend/internal/servers (see ../docs/BACKEND.md).
+
+locations:
+  - id: singapore
+    display_name: "Singapore"
+    localtonet_region: singapore
+    relay_address: "REPLACE_WITH_LOCALTONET_ENDPOINT:PORT"
+    central_server: central-1
+
+  - id: europe
+    display_name: "Europe"
+    localtonet_region: frankfurt
+    relay_address: "REPLACE_WITH_LOCALTONET_ENDPOINT:PORT"
+    central_server: central-1
