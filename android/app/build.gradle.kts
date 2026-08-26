@@ -30,6 +30,11 @@ android {
     namespace = "com.syvpn.app"
     compileSdk = 35
 
+    // Also renames the bundleRelease/.aab output (app-release.aab ->
+    // sy-vpn-release.aab) — the APK rename below needs the extra
+    // applicationVariants hook since AGP ignores archivesName for APKs.
+    base.archivesName.set("sy-vpn")
+
     defaultConfig {
         applicationId = "com.syvpn.app"
         minSdk = 26 // VpnService + WireGuard tunnel library both fine at this floor
@@ -74,6 +79,17 @@ android {
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
+        }
+    }
+
+    // Default AGP output naming is "<gradle module name>-<buildType>.apk" —
+    // this module is literally named "app" (see settings.gradle.kts), so
+    // without this it's "app-debug.apk"/"app-release.apk" regardless of the
+    // app's display name or package. Rename the actual output file instead.
+    applicationVariants.all {
+        outputs.all {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            output.outputFileName = "sy-vpn-${versionName}-${name}.apk"
         }
     }
 
