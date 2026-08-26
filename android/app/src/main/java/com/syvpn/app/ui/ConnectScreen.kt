@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -34,8 +35,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.syvpn.app.R
 import com.syvpn.app.ads.AdsterraBannerAd
 import com.syvpn.app.data.ApiClient
 import com.syvpn.app.ui.theme.LocalStatusColors
@@ -144,10 +148,12 @@ private fun AppHeader(connectedNowCount: Int?) {
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
+            Image(
+                painter = painterResource(R.drawable.logo),
+                contentDescription = null,
                 modifier = Modifier
-                    .size(10.dp)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(8.dp)),
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(

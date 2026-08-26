@@ -1,4 +1,9 @@
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@drawable/ic_launcher_background" />
-    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <!-- Real logo (2026-08-27) — a finished square icon image (shield+SY+globe
+         on its own dark ground), used whole as the background layer rather
+         than split into a separate foreground graphic: it was already
+         designed as a complete app-icon square, not raw artwork meant to
+         float on an arbitrary adaptive background color. -->
+    <background android:drawable="@mipmap/ic_launcher_background" />
+    <foreground android:drawable="@android:color/transparent" />
 </adaptive-icon>
