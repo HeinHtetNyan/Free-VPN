@@ -27,6 +27,10 @@ android/
 
 `ApiClient.DEV_BASE_URL` points at the real production backend, `https://sy-api.heinh.dev` (updated 2026-08-27 — previously the emulator-only `10.0.2.2` alias).
 
+## Visual design (2026-08-27)
+
+A deliberate "night signal" palette (`ui/theme/Color.kt`) — deep indigo-black grounds, a stable jade-teal brand accent for actions/selection, and one distinct color per connection state (idle/connecting/connected/error) so the status card reads at a glance without depending on the label text (`ui/theme/Theme.kt`'s `LocalStatusColors`). Typography pairs **Sora** (display, for the status headline and app name) with **IBM Plex Sans** (body/UI) — both bundled as variable fonts in `res/font/` (`ui/theme/Type.kt`), not the default Material/system typeface. The one purposeful animation is a gentle pulse on the status dot while `Connecting` — motion used only where it encodes real state, not decoration.
+
 ## Verified on a real physical device (2026-08-27)
 
 Not just "compiles" — installed and used on a real phone over wireless `adb` (`adb pair`/`adb connect`, no cable needed once paired), with real results: real backend connection, real Android VPN permission dialog, real WireGuard handshake through the real LocalToNet relay, real browsing through the tunnel (confirmed via the status bar's VPN key icon and an actual page load). This is the strongest verification this project has had — stronger than `infra/local-test/`, since it exercises code paths (the actual `VpnService`/`GoBackend` integration, real Android permission flow) that a Docker-based test never touches.

@@ -1,0 +1,8 @@
+<resources>
+    <!-- Matches the light "night signal" background (Color.kt LightBackground)
+         so there's no mismatched white/default flash before Compose's own
+         VpnAppTheme takes over. -->
+    <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#F3F5FA</item>
+    </style>
+</resources>
