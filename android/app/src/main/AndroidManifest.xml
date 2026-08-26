@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Needed to query ConnectivityManager (VpnConnectionManager.isRunning())
+         — reading network state, not modifying it. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- VpnService itself doesn't require a manifest permission beyond
          BIND_VPN_SERVICE on the service declaration below; the user grants
          VPN access via the system prompt triggered by VpnService.prepare(). -->

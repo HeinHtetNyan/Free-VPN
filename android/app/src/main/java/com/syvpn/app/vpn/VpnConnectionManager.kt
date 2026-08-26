@@ -2,8 +2,9 @@ package com.syvpn.app.vpn
 
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.VpnService
-import com.wireguard.android.backend.Backend
 import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.config.Config
@@ -17,9 +18,13 @@ import java.io.ByteArrayInputStream
  * com.wireguard.android:tunnel library as of the version pinned in
  * app/build.gradle.kts — re-verify against that artifact's docs if Gradle
  * reports it's changed.
+ *
+ * Typed as the concrete GoBackend, not the Backend interface, specifically
+ * for isRunning() below — getRunningTunnelNames() isn't on the Backend
+ * interface.
  */
 class VpnConnectionManager(context: Context) {
-    private val backend: Backend = GoBackend(context)
+    private val backend: GoBackend = GoBackend(context)
     private val tunnel = AppTunnel { state -> onStateChange?.invoke(state) }
 
     /** UI hook — set to update connected/disconnected/error state on screen. */
@@ -44,6 +49,24 @@ class VpnConnectionManager(context: Context) {
     }
 
     fun currentState(): Tunnel.State = backend.getState(tunnel)
+
+    /**
+     * GoBackend's own getState()/getRunningTunnelNames() are both dead ends
+     * for this: decompiling the library (1.0.20230706) shows
+     * getRunningTunnelNames() just wraps the exact same in-memory
+     * currentTunnel instance field getState() checks — neither one actually
+     * queries the native layer, so neither survives a fresh GoBackend
+     * instance (e.g. after this Activity/process is recreated), even though
+     * the real tunnel (a system VpnService, independent of our process) is
+     * still running. ConnectivityManager is the OS's own ground truth
+     * instead — ask it whether this app is *currently* being routed through
+     * any VPN, independent of any WireGuard-library bookkeeping.
+     */
+    fun isRunning(context: Context): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+        return caps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+    }
 
     private class AppTunnel(private val onChange: (Tunnel.State) -> Unit) : Tunnel {
         override fun getName(): String = "vpnapp"
