@@ -15,7 +15,7 @@ import java.net.URL
  */
 class ApiClient(private val baseUrl: String) {
 
-    data class Location(val id: String, val displayName: String)
+    data class Location(val id: String, val displayName: String, val relayHost: String)
     data class ConnectResult(val locationId: String, val config: String, val publicKey: String)
 
     /** POST /auth/register — anonymous, idempotent by device ID. */
@@ -31,8 +31,14 @@ class ApiClient(private val baseUrl: String) {
         val arr = response.getJSONArray("locations")
         return (0 until arr.length()).map { i ->
             val obj = arr.getJSONObject(i)
-            Location(obj.getString("id"), obj.getString("display_name"))
+            Location(obj.getString("id"), obj.getString("display_name"), obj.optString("relay_host", ""))
         }
+    }
+
+    /** GET /stats — aggregate-only; how many devices are connected right now. */
+    fun connectedNow(token: String): Int {
+        val response = get("/stats", token)
+        return response.getInt("connected_now")
     }
 
     /** POST /connect — requests a fresh WireGuard config for locationId. */

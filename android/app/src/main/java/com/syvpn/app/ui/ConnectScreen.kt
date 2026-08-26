@@ -60,6 +60,8 @@ fun ConnectScreen(
     selectedLocationId: String?,
     onSelectLocation: (String) -> Unit,
     connectionState: ConnectionUiState,
+    connectedNowCount: Int?,
+    locationLatencies: Map<String, Int?>,
     onConnectClick: () -> Unit,
     onDisconnectClick: () -> Unit,
 ) {
@@ -74,7 +76,7 @@ fun ConnectScreen(
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            AppHeader()
+            AppHeader(connectedNowCount)
 
             StatusCard(connectionState)
 
@@ -125,6 +127,7 @@ fun ConnectScreen(
                     LocationRow(
                         location = location,
                         selected = location.id == selectedLocationId,
+                        latencyMs = locationLatencies[location.id],
                         onClick = { onSelectLocation(location.id) },
                     )
                 }
@@ -134,20 +137,47 @@ fun ConnectScreen(
 }
 
 @Composable
-private fun AppHeader() {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(10.dp)
-                .background(MaterialTheme.colorScheme.primary, CircleShape),
-        )
-        Spacer(modifier = Modifier.width(10.dp))
-        Text(
-            "SY VPN",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
+private fun AppHeader(connectedNowCount: Int?) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                "SY VPN",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+        }
+        if (connectedNowCount != null) {
+            val connected = LocalStatusColors.current.connected
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .background(connected, CircleShape),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    "${formatCount(connectedNowCount)} online",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
+}
+
+private fun formatCount(n: Int): String = when {
+    n >= 1000 -> "%.1fk".format(n / 1000.0)
+    else -> n.toString()
 }
 
 @Composable
@@ -227,7 +257,7 @@ private fun StatusDot(color: Color, pulsing: Boolean) {
 }
 
 @Composable
-private fun LocationRow(location: ApiClient.Location, selected: Boolean, onClick: () -> Unit) {
+private fun LocationRow(location: ApiClient.Location, selected: Boolean, latencyMs: Int?, onClick: () -> Unit) {
     val borderColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
     Row(
         modifier = Modifier
@@ -244,13 +274,36 @@ private fun LocationRow(location: ApiClient.Location, selected: Boolean, onClick
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(vertical = 14.dp),
         )
-        RadioButton(
-            selected = selected,
-            onClick = onClick,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = MaterialTheme.colorScheme.primary,
-                unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            LatencyBadge(latencyMs)
+            Spacer(modifier = Modifier.width(4.dp))
+            RadioButton(
+                selected = selected,
+                onClick = onClick,
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = MaterialTheme.colorScheme.primary,
+                    unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+            )
+        }
     }
+}
+
+/** ms == null covers both "not measured yet" and "unreachable" — both show
+ * as a neutral dash rather than a false zero or an alarming error state,
+ * since a slow/failed latency probe isn't itself a connection problem. */
+@Composable
+private fun LatencyBadge(latencyMs: Int?) {
+    val status = LocalStatusColors.current
+    val color = when {
+        latencyMs == null -> MaterialTheme.colorScheme.onSurfaceVariant
+        latencyMs < 100 -> status.connected
+        latencyMs < 250 -> status.connecting
+        else -> status.error
+    }
+    Text(
+        text = if (latencyMs != null) "${latencyMs} ms" else "—",
+        style = MaterialTheme.typography.bodySmall,
+        color = color,
+    )
 }

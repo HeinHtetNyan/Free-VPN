@@ -11,12 +11,16 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import com.syvpn.app.data.ApiClient
 import com.syvpn.app.data.DeviceIdentity
+import com.syvpn.app.data.LatencyChecker
 import com.syvpn.app.ui.ConnectionUiState
 import com.syvpn.app.ui.ConnectScreen
 import com.syvpn.app.ui.theme.VpnAppTheme
 import com.syvpn.app.vpn.VpnConnectionManager
 import com.wireguard.android.backend.Tunnel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -62,6 +66,8 @@ class MainActivity : ComponentActivity() {
     private var locations by mutableStateOf<List<ApiClient.Location>>(emptyList())
     private var selectedLocationId by mutableStateOf<String?>(null)
     private var connectionState by mutableStateOf<ConnectionUiState>(ConnectionUiState.Idle)
+    private var connectedNowCount by mutableStateOf<Int?>(null)
+    private var locationLatencies by mutableStateOf<Map<String, Int?>>(emptyMap())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -118,6 +124,8 @@ class MainActivity : ComponentActivity() {
                     selectedLocationId = selectedLocationId,
                     onSelectLocation = { selectedLocationId = it },
                     connectionState = connectionState,
+                    connectedNowCount = connectedNowCount,
+                    locationLatencies = locationLatencies,
                     onConnectClick = ::onConnectClick,
                     onDisconnectClick = ::onDisconnectClick,
                 )
@@ -140,12 +148,38 @@ class MainActivity : ComponentActivity() {
                     locations = fetched
                     selectedLocationId = fetched.firstOrNull()?.id
                 }
+                measureLatencies(fetched)
+                startStatsRefreshLoop(token)
             } catch (e: Exception) {
                 launch(Dispatchers.Main) {
                     connectionState = ConnectionUiState.Error("Could not load locations: ${e.message}")
                 }
             }
         }
+    }
+
+    /** Refreshes the "connected now" count and each location's latency
+     * periodically for as long as this screen exists — both are meant to
+     * read as live indicators, not a one-time snapshot from app launch. */
+    private suspend fun startStatsRefreshLoop(token: String) {
+        while (true) {
+            try {
+                val count = apiClient.connectedNow(token)
+                lifecycleScope.launch(Dispatchers.Main) { connectedNowCount = count }
+            } catch (e: Exception) {
+                // Non-critical — leave the last known count showing rather
+                // than surfacing an error for a purely informational stat.
+            }
+            delay(20_000)
+            measureLatencies(locations)
+        }
+    }
+
+    private suspend fun measureLatencies(locs: List<ApiClient.Location>) {
+        val results = locs.map { loc ->
+            lifecycleScope.async(Dispatchers.IO) { loc.id to LatencyChecker.measureMs(loc.relayHost) }
+        }.awaitAll()
+        lifecycleScope.launch(Dispatchers.Main) { locationLatencies = results.toMap() }
     }
 
     private fun onConnectClick() {
