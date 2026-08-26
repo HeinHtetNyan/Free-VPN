@@ -9,9 +9,9 @@ Things still pending, mostly on the user's side. Check this before assuming some
 ## LocalToNet
 - [x] ~~Read LocalToNet's actual ToS~~ — done: it prohibits this use case ("reselling, duplicating, or exploiting any part of LocalToNet without written permission"). See `docs/DECISIONS.md` 2026-08-26.
 - [x] ~~Decide how to proceed~~ — resolved: proceed with LocalToNet anyway, knowingly accepting the ToS violation risk (account suspension would take every location down at once). User's explicit, fully-informed choice. See `docs/DECISIONS.md`.
-- [x] ~~Account/plan set up~~ — done 2026-08-26: first tunnel created (id `2297029`, relay `vbznwgzpdl.localto.net`, server `sg2`/Singapore), their client installed and running as a systemd service on the Shared VPS with the real device AuthToken — see `infra/LOCALTONET_SETUP.md`.
-- [ ] Which additional locations to launch with (Thailand isn't directly in their region list — nearest options are Singapore/Hong Kong; confirm what's actually available in their dashboard). One (Singapore) exists so far.
-- [ ] Confirm tunnel `2297029`'s Local IP/Port are set to `127.0.0.1`/`51820`, and note the relay's assigned public port once the tunnel shows connected — both needed for `backend/internal/servers/locations.json`.
+- [x] ~~Account/plan set up~~ — done 2026-08-26: first tunnel created (id `2297029`, server `sg2`/Singapore), their client installed and running as a systemd service on the Shared VPS with the real device AuthToken — see `infra/LOCALTONET_SETUP.md`.
+- [x] ~~Get the tunnel actually connected and into locations.json~~ — done 2026-08-27: confirmed Local IP/Port were already `127.0.0.1`/`51820`, started the tunnel (Created ≠ Started — separate step), relay assigned `vbznwgzpdl.localto.net:2020`. Now the real `relay_address` for `singapore` in `backend/internal/servers/locations.json`, deployed.
+- [ ] Which additional locations to launch with (Thailand isn't directly in their region list — nearest options are Singapore/Hong Kong; confirm what's actually available in their dashboard). Only Singapore exists so far — Europe was removed from `locations.json` until a real tunnel exists for it, so the app never offers a location that can't connect.
 
 ## Backend
 - [x] ~~Auth strategy~~ — resolved: anonymous device-bound identity. Implemented in `backend/internal/auth`, `backend/internal/users`. See `docs/DECISIONS.md`.

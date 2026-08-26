@@ -3,14 +3,7 @@
     "id": "singapore",
     "display_name": "Singapore",
     "localtonet_region": "singapore",
-    "relay_address": "REPLACE_WITH_LOCALTONET_ENDPOINT:PORT",
-    "central_server": "central-1"
-  },
-  {
-    "id": "europe",
-    "display_name": "Europe",
-    "localtonet_region": "frankfurt",
-    "relay_address": "REPLACE_WITH_LOCALTONET_ENDPOINT:PORT",
+    "relay_address": "vbznwgzpdl.localto.net:2020",
     "central_server": "central-1"
   }
 ]
