@@ -1,8 +1,21 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+// Adsterra zone IDs are real publisher credentials — kept out of source and
+// out of git via android/local.properties (gitignored), not hardcoded.
+// See android/local.properties.example. Falls back to a placeholder so the
+// app still builds before that file exists.
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+fun adsterraProperty(key: String): String =
+    (localProperties.getProperty(key) ?: System.getenv(key) ?: "ADSTERRA_ZONE_ID_PLACEHOLDER")
 
 android {
     namespace = "com.syvpn.app"
@@ -14,6 +27,12 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+
+        buildConfigField(
+            "String",
+            "ADSTERRA_BANNER_ZONE_ID",
+            "\"${adsterraProperty("ADSTERRA_BANNER_ZONE_ID")}\"",
+        )
     }
 
     buildTypes {
@@ -33,6 +52,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

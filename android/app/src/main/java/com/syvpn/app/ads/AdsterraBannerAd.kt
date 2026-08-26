@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.syvpn.app.BuildConfig
 
 /**
  * Adsterra has no native Android SDK (see docs/MONETIZATION.md) — ads are
@@ -16,10 +17,13 @@ import androidx.compose.ui.viewinterop.AndroidView
  * rejection risk) — only Banner/Native/Interstitial, rendered inline like
  * this, never as a full-screen takeover the user didn't tap into.
  *
- * TODO: replace ADSTERRA_ZONE_ID_PLACEHOLDER with a real zone ID once an
- * Adsterra publisher account exists (docs/OPEN_QUESTIONS.md). Ad tag markup
- * below is a placeholder shape, not copied from Adsterra's real docs —
- * confirm the exact script snippet in the Adsterra dashboard before shipping.
+ * Zone ID comes from BuildConfig.ADSTERRA_BANNER_ZONE_ID, sourced from
+ * android/local.properties (gitignored, real credentials never committed —
+ * see android/local.properties.example). Falls back to a placeholder until
+ * an Adsterra publisher account exists (docs/OPEN_QUESTIONS.md). Ad tag
+ * markup below is a placeholder shape, not copied from Adsterra's real
+ * docs — confirm the exact script snippet in the Adsterra dashboard before
+ * shipping.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -31,7 +35,7 @@ fun AdsterraBannerAd(modifier: Modifier = Modifier) {
                 settings.javaScriptEnabled = true
                 loadDataWithBaseURL(
                     "https://www.adsterra.com",
-                    adTagHtml(zoneId = "ADSTERRA_ZONE_ID_PLACEHOLDER"),
+                    adTagHtml(zoneId = BuildConfig.ADSTERRA_BANNER_ZONE_ID),
                     "text/html",
                     "UTF-8",
                     null,

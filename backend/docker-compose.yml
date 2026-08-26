@@ -1,0 +1,28 @@
+# Explicit project name required: several other apps on the target VPS also
+# keep their compose file in a directory literally named "backend" — without
+# this, Compose derives the project name from the directory basename, and
+# two same-named projects can silently recreate/kill each other's containers
+# on `docker compose up` even with distinct container_name values.
+name: sy-vpn-backend
+
+services:
+  # network_mode: host (not the usual isolated bridge network) because
+  # internal/servers/wireguard_manager.go talks to the host's real wg0
+  # interface via netlink (wgctrl) — it has to be reachable, not just this
+  # container's own loopback. cap_add NET_ADMIN is what actually grants the
+  # netlink permission; host networking alone doesn't. See ../docs/INFRA.md
+  # and ../backend/Dockerfile.
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: syvpn_api
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    env_file: ./.env
+    environment:
+      - BIND_HOST=127.0.0.1
+    volumes:
+      - ./data:/data

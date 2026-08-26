@@ -48,7 +48,15 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	addr := ":" + port
+	// Defaults to all interfaces (0.0.0.0) since infra/local-test's client
+	// container reaches the server container by IP over a Docker bridge
+	// network. Production (running with network_mode: host, so it can reach
+	// the host's real wg0 via netlink) sets this to 127.0.0.1 explicitly —
+	// under host networking there's no Docker port-publish step to fall back
+	// on for keeping this off the public interface, unlike the other apps on
+	// that VPS.
+	bindHost := os.Getenv("BIND_HOST")
+	addr := bindHost + ":" + port
 	log.Printf("control plane listening on %s (%d locations loaded)", addr, len(locations))
 	if err := http.ListenAndServe(addr, server.Router()); err != nil {
 		log.Fatal(err)

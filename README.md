@@ -27,18 +27,22 @@ This README is the map. Read `docs/` before making changes — it explains *why*
 9. [`docs/DECISIONS.md`](docs/DECISIONS.md) — decision log with rationale, so we don't relitigate settled questions
 10. [`docs/OPEN_QUESTIONS.md`](docs/OPEN_QUESTIONS.md) — everything still pending on the user's side
 
-## Paused here (2026-08-26) — resume with this
+## Paused here (2026-08-27) — resume with this
 
 Work is paused pending the user setting up external accounts. **Nothing about the design or code is in question** — everything buildable without external accounts is done and verified. Pick up with:
 
+**Done since 2026-08-26:**
+- **Central server** — using the existing Shared VPS, project kept at `/home/appbox/SY/` on it (deliberately not VPN-named — see `docs/DECISIONS.md` 2026-08-27). `infra/scripts/setup-central-server.sh` run for real: `wg0` up, listening UDP `51820`, server public key `4b3P37J2ZE3Hj2xDyCFPsFUWrJM+DZRCmE//5MRXdEo=`. `backend/` itself is not deployed there yet.
+- **Adsterra wiring** — `android/` now reads the zone ID from `BuildConfig.ADSTERRA_BANNER_ZONE_ID`, sourced from a gitignored `android/local.properties` (see `android/local.properties.example`). Dropping a real zone ID in there needs no further code changes. Verified via a full Docker rebuild.
+
 **Only the user can do these (accounts/payment):**
-1. **LocalToNet** — sign up (paid plan; free tier is unusable — see `docs/ARCHITECTURE.md`), create one UDP tunnel per launch location pointed at the central VPS's WireGuard port, hand back the relay addresses. Note: their ToS prohibits this use case and the decision was made to proceed anyway, knowingly — see `docs/DECISIONS.md` 2026-08-26.
-2. **A VPS** for the central server(s) — any provider. Once it exists: either give Claude SSH access to run `infra/scripts/setup-central-server.sh`, or run it yourself and send back the printed server public key.
-3. **Adsterra** — sign up as publisher, create Banner/Native/Interstitial ad units (not Popunder/Social Bar — see `docs/PLAY_STORE_COMPLIANCE.md`), hand back the zone ID(s).
-4. A real contact email for `docs/PRIVACY_POLICY_DRAFT.md`, and a decision on legal review before publishing.
+1. **LocalToNet** — sign up (paid plan; free tier is unusable — see `docs/ARCHITECTURE.md`), create one UDP tunnel per launch location, each pointed at `127.0.0.1:51820` on the central VPS (their client runs on the VPS itself — see `infra/LOCALTONET_SETUP.md` for the corrected step-by-step). Hand back the relay addresses. Note: their ToS prohibits this use case and the decision was made to proceed anyway, knowingly — see `docs/DECISIONS.md` 2026-08-26. **Ignore their "VPN Manager" feature — that's a separate, unrelated product.**
+2. **Adsterra** — sign up as publisher, create a Banner ad unit (not Popunder/Social Bar — see `docs/PLAY_STORE_COMPLIANCE.md`), hand back the zone ID. Drops straight into `android/local.properties`.
+3. A real contact email for `docs/PRIVACY_POLICY_DRAFT.md`, and a decision on legal review before publishing.
 
 **Claude can do without waiting on the above:**
 - Get the Android app actually running on an emulator (not just compiling) — this machine has KVM available. Offered, not yet done.
+- Deploy `backend/` to the Shared VPS (`/home/appbox/SY/`) once the user wants it live — the WireGuard side is already up and waiting.
 
 ## What's already done (for context when resuming)
 

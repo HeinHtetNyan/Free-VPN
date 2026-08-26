@@ -16,7 +16,7 @@ Things still pending, mostly on the user's side. Check this before assuming some
 - [x] ~~Auth strategy~~ — resolved: anonymous device-bound identity. Implemented in `backend/internal/auth`, `backend/internal/users`. See `docs/DECISIONS.md`.
 - [x] ~~Database choice~~ — resolved: SQLite (`modernc.org/sqlite`), implemented and tested (persists across restarts). See `docs/BACKEND.md`.
 - [x] ~~Does the whole mechanism actually work?~~ — resolved: yes, fully validated locally with zero host networking changes. See `infra/local-test/` and `docs/DECISIONS.md` 2026-08-26.
-- [ ] Hosting provider for the 1-2 central servers — needed to actually run `infra/scripts/setup-central-server.sh` and get real Endpoint/public-key values into `backend/internal/servers/locations.json` and the `SERVER_PUBLIC_KEY` env var. This is the last remaining backend blocker — the mechanism is proven, the code is tested; what's missing is a real machine to run it on.
+- [x] ~~Hosting provider for the 1-2 central servers~~ — resolved 2026-08-27: using the existing Shared VPS (`hhn.infinity.appboxes.co`), project files kept under the deliberately non-VPN-named `/home/appbox/SY/` (see `docs/DECISIONS.md`). `infra/scripts/setup-central-server.sh` has been run there: `wg0` up, listening UDP `51820`, server public key `4b3P37J2ZE3Hj2xDyCFPsFUWrJM+DZRCmE//5MRXdEo=`. Still open: deploying `backend/` itself to this host and setting `SERVER_PUBLIC_KEY` in its environment when that happens.
 
 ## Ads (Adsterra)
 - [ ] Adsterra publisher account + zone IDs.

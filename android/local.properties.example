@@ -1,0 +1,7 @@
+# Copy this file to android/local.properties (gitignored — never commit real
+# credentials) and fill in real values once they exist.
+
+# sdk.dir=/path/to/Android/sdk   # usually auto-written by Android Studio
+
+# Adsterra publisher dashboard -> Banner ad unit -> zone ID
+ADSTERRA_BANNER_ZONE_ID=your-real-zone-id-here

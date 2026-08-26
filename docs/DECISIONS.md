@@ -4,6 +4,12 @@ Newest first. Each entry: what was decided, why, and what it rules out — so we
 
 ---
 
+### 2026-08-27 — Central server hosting: the existing Shared VPS, project kept under a non-VPN folder name
+
+Used the already-owned Shared VPS (`hhn.infinity.appboxes.co`, see memory) instead of provisioning a new box — no extra cost, and it already runs several other unrelated apps (BonBon POS, RateBridge, n8n, a portfolio site) under isolated Docker networks. Project files placed at `/home/appbox/SY/`, deliberately not named anything VPN-related — same operational-precaution reasoning as the `com.syvpn.app` naming decision below, though it's a light touch: the folder name doesn't hide the running `wg0` interface, listening UDP port, or `wireguard` package from anyone who actually inspects the host (there just isn't anyone else with shell access to this box to notice).
+
+Ran `infra/scripts/setup-central-server.sh` for real: `wg0` up, `10.66.0.1/16`, listening UDP `51820`, systemd `wg-quick@wg0` enabled (survives reboot). Server public key: `4b3P37J2ZE3Hj2xDyCFPsFUWrJM+DZRCmE//5MRXdEo=`. Checked first for conflicts with the box's other tenants: no existing WireGuard install, port 51820 free, no Docker subnet overlap with `10.66.0.0/16` (existing networks are all `172.x`), `ip_forward` was already `1` (Docker had already set it — the script's sysctl step was a no-op). Still open: deploying `backend/` itself to this host (not done yet — this pass was WireGuard only) and setting `SERVER_PUBLIC_KEY` in its environment when that happens, per the env-var mechanism from the 2026-08-26 rename entry below.
+
 ### 2026-08-26 — LocalToNet's actual ToS read: it prohibits this use case
 
 This was the single highest-priority open item throughout this whole build (`docs/OPEN_QUESTIONS.md`) — finally read it. Their Terms of Use (`localtonet.com/terms`, confirmed via two independent fetches) state: *"You shall not use LocalToNet for any inappropriate purpose, such as reselling, duplicating, or exploiting any part of LocalToNet without written permission."* Running a commercial VPN product's traffic backbone through their tunnels is a straightforward case of "reselling/exploiting" their service. This is **not** a stretch interpretation.
