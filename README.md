@@ -29,20 +29,25 @@ This README is the map. Read `docs/` before making changes — it explains *why*
 
 ## Paused here (2026-08-27) — resume with this
 
-Work is paused pending the user setting up external accounts. **Nothing about the design or code is in question** — everything buildable without external accounts is done and verified. Pick up with:
+**Backend is live in production**, verified end-to-end for real (not just locally): `https://sy-api.heinh.dev/health` → `200`, and a real register→locations→connect smoke test produced a real peer on the production `wg0` (confirmed via `wg show`, cleaned up after). Everything buildable without external accounts is done. Pick up with:
 
 **Done since 2026-08-26:**
-- **Central server** — using the existing Shared VPS, project kept at `/home/appbox/SY/` on it (deliberately not VPN-named — see `docs/DECISIONS.md` 2026-08-27). `infra/scripts/setup-central-server.sh` run for real: `wg0` up, listening UDP `51820`, server public key `4b3P37J2ZE3Hj2xDyCFPsFUWrJM+DZRCmE//5MRXdEo=`. `backend/` itself is not deployed there yet.
-- **Adsterra wiring** — `android/` now reads the zone ID from `BuildConfig.ADSTERRA_BANNER_ZONE_ID`, sourced from a gitignored `android/local.properties` (see `android/local.properties.example`). Dropping a real zone ID in there needs no further code changes. Verified via a full Docker rebuild.
+- **Central server** — Shared VPS, project at `/home/appbox/SY/` (deliberately not VPN-named — see `docs/DECISIONS.md`). `wg0` up, listening UDP `51820`, server public key `4b3P37J2ZE3Hj2xDyCFPsFUWrJM+DZRCmE//5MRXdEo=`.
+- **Backend deployed** — `backend/` running there (`docker compose`, `network_mode: host` + `cap_add: NET_ADMIN` for `wgctrl`'s netlink access to `wg0`), bound to `127.0.0.1:8080` only.
+- **Public hostname** — `sy-api.heinh.dev` via a dedicated Cloudflare Tunnel (not `sawyuntech.com` — see `docs/DECISIONS.md` for why), live and serving real traffic.
+- **LocalToNet connected** — account set up, first tunnel (Singapore) created, their client running as a systemd service on the same VPS with the real device token.
+- **Adsterra wiring** — `android/` reads the zone ID from `BuildConfig.ADSTERRA_BANNER_ZONE_ID`, sourced from gitignored `android/local.properties`. Dropping a real zone ID in needs no code changes.
+- **Deploy pipeline** — GitHub Actions workflow + `deploy.sh` exist and are pushed; first deploy was done manually over SSH rather than waiting on the secret below.
 
-**Only the user can do these (accounts/payment):**
-1. **LocalToNet** — sign up (paid plan; free tier is unusable — see `docs/ARCHITECTURE.md`), create one UDP tunnel per launch location, each pointed at `127.0.0.1:51820` on the central VPS (their client runs on the VPS itself — see `infra/LOCALTONET_SETUP.md` for the corrected step-by-step). Hand back the relay addresses. Note: their ToS prohibits this use case and the decision was made to proceed anyway, knowingly — see `docs/DECISIONS.md` 2026-08-26. **Ignore their "VPN Manager" feature — that's a separate, unrelated product.**
-2. **Adsterra** — sign up as publisher, create a Banner ad unit (not Popunder/Social Bar — see `docs/PLAY_STORE_COMPLIANCE.md`), hand back the zone ID. Drops straight into `android/local.properties`.
-3. A real contact email for `docs/PRIVACY_POLICY_DRAFT.md`, and a decision on legal review before publishing.
+**Only the user can do these:**
+1. **Confirm LocalToNet tunnel `2297029`'s Local IP/Port are `127.0.0.1`/`51820`, and get its assigned public relay port** once it shows connected — needed to replace the `REPLACE_WITH_LOCALTONET_ENDPOINT:PORT` placeholder in `backend/internal/servers/locations.json` with the real thing. This is the last piece between "backend works" and "a phone can actually connect."
+2. Add `VPS_DEPLOY_KEY` as a GitHub repo secret (value already generated and handed over) so future pushes to `backend/**` auto-deploy instead of needing a manual SSH deploy each time.
+3. **Adsterra** — sign up as publisher, create a Banner ad unit (not Popunder/Social Bar — see `docs/PLAY_STORE_COMPLIANCE.md`), hand back the zone ID. Drops straight into `android/local.properties`.
+4. A real contact email for `docs/PRIVACY_POLICY_DRAFT.md`, and a decision on legal review before publishing.
 
 **Claude can do without waiting on the above:**
 - Get the Android app actually running on an emulator (not just compiling) — this machine has KVM available. Offered, not yet done.
-- Deploy `backend/` to the Shared VPS (`/home/appbox/SY/`) once the user wants it live — the WireGuard side is already up and waiting.
+- Point `android/data/ApiClient.kt`'s `DEV_BASE_URL` at `https://sy-api.heinh.dev` once real device testing (vs. emulator-only) is wanted.
 
 ## What's already done (for context when resuming)
 

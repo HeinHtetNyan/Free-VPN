@@ -25,7 +25,8 @@ Things still pending, mostly on the user's side. Check this before assuming some
 
 ## Backend hosting/deploy (updated 2026-08-26)
 - [x] ~~Public hostname for the backend~~ — resolved: `sy-api.heinh.dev`, via a dedicated Cloudflare Tunnel (id `97787a8f-a3e5-4a01-9d19-797e843790da`) on the existing `heinh.dev` zone/account, not `sawyuntech.com` (keeps it off the Saw Yun LLC brand, per the app-naming decision). DNS + tunnel config created via API; `tunnel/.env`'s token is in place locally, not yet running on the VPS.
-- [ ] Push the repo to GitHub (`origin` = `HeinHtetNyan/Free-VPN`), add `VPS_DEPLOY_KEY` as a repo secret, then clone onto the Shared VPS at `/home/appbox/SY/` and run the first deploy — everything else is ready and waiting on this.
+- [x] ~~Push, clone, and deploy~~ — done 2026-08-27: repo pushed, cloned onto `/home/appbox/SY/`, `backend/` + `tunnel/` both running. Verified for real: `https://sy-api.heinh.dev/health` → 200, and a live register→locations→connect smoke test produced a real peer on production `wg0`.
+- [ ] Add `VPS_DEPLOY_KEY` as a GitHub repo secret so future pushes to `backend/**` auto-deploy — the first deploy was done manually over SSH instead of waiting on this.
 
 ## Monetization (paid tier)
 - [ ] Whether/when to add a paid ad-free tier, and how (Google Play Billing is the natural fit for Android). Not designed yet — explicitly deferred.
