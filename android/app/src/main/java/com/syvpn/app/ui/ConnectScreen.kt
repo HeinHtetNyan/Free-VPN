@@ -105,7 +105,7 @@ fun ConnectScreen(
     // user is watching open.
     var showAd by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        delay(120)
+        delay(50)
         showAd = true
     }
 
