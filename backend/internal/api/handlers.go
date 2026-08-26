@@ -7,6 +7,7 @@ import (
 
 	"sy-vpn-backend/internal/auth"
 	"sy-vpn-backend/internal/servers"
+	"sy-vpn-backend/internal/stats"
 	"sy-vpn-backend/internal/users"
 )
 
@@ -23,10 +24,14 @@ type Server struct {
 	Locations          []servers.Location
 	WireGuardIfaceName string
 	ServerPublicKey    string
+	// Stats is nil in tests/environments that don't wire one up (see
+	// cmd/server/main.go) — handleStats degrades to a zero count rather than
+	// panicking or erroring, since "no data yet" is a normal startup state.
+	Stats *stats.Collector
 }
 
-func NewServer(userStore *users.Store, peerStore *servers.PeerStore, locations []servers.Location, wgIfaceName, serverPublicKey string) *Server {
-	return &Server{Users: userStore, Peers: peerStore, Locations: locations, WireGuardIfaceName: wgIfaceName, ServerPublicKey: serverPublicKey}
+func NewServer(userStore *users.Store, peerStore *servers.PeerStore, locations []servers.Location, wgIfaceName, serverPublicKey string, statsCollector *stats.Collector) *Server {
+	return &Server{Users: userStore, Peers: peerStore, Locations: locations, WireGuardIfaceName: wgIfaceName, ServerPublicKey: serverPublicKey, Stats: statsCollector}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -72,10 +77,13 @@ func (s *Server) handleListLocations(w http.ResponseWriter, r *http.Request) {
 	type locationView struct {
 		ID          string `json:"id"`
 		DisplayName string `json:"display_name"`
+		// RelayHost (no port) lets the app measure its own latency to this
+		// location — see servers.Location.RelayHost.
+		RelayHost string `json:"relay_host"`
 	}
 	views := make([]locationView, 0, len(s.Locations))
 	for _, l := range s.Locations {
-		views = append(views, locationView{ID: l.ID, DisplayName: l.DisplayName})
+		views = append(views, locationView{ID: l.ID, DisplayName: l.DisplayName, RelayHost: l.RelayHost()})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"locations": views})
 }
@@ -111,7 +119,7 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	assignedIP, err := s.Peers.AllocateIP(keys.PublicKey)
+	assignedIP, err := s.Peers.AllocateIP(keys.PublicKey, user.ID, loc.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not allocate tunnel address")
 		return
@@ -136,4 +144,15 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 		"public_key":  keys.PublicKey,
 		"user_id":     user.ID,
 	})
+}
+
+// handleStats is deliberately aggregate-only — a per-user breakdown belongs
+// in the admin dashboard (a separate, access-controlled project), not a
+// public-ish endpoint every registered device can call.
+func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
+	connectedNow := 0
+	if s.Stats != nil {
+		connectedNow = s.Stats.Current().ConnectedNow
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"connected_now": connectedNow})
 }

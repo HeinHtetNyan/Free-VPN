@@ -3,6 +3,7 @@ package servers
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -39,7 +40,46 @@ func NewPeerStore(dbPath string) (*PeerStore, error) {
 		return nil, fmt.Errorf("creating peer_allocations table: %w", err)
 	}
 
+	// Added later than the table itself (see docs/DECISIONS.md) — original
+	// rows predate user/location attribution, so these are nullable rather
+	// than a destructive rebuild. modernc.org/sqlite's bundled SQLite
+	// doesn't support ADD COLUMN IF NOT EXISTS, so check first.
+	if err := addColumnIfMissing(db, "peer_allocations", "user_id", "TEXT"); err != nil {
+		return nil, err
+	}
+	if err := addColumnIfMissing(db, "peer_allocations", "location_id", "TEXT"); err != nil {
+		return nil, err
+	}
+
 	return &PeerStore{db: db}, nil
+}
+
+func addColumnIfMissing(db *sql.DB, table, column, sqlType string) error {
+	rows, err := db.Query(fmt.Sprintf(`PRAGMA table_info(%s)`, table))
+	if err != nil {
+		return fmt.Errorf("inspecting %s schema: %w", table, err)
+	}
+	defer rows.Close()
+
+	var name string
+	var cid, notnull, pk int
+	var colType, dflt sql.NullString
+	for rows.Next() {
+		if err := rows.Scan(&cid, &name, &colType, &notnull, &dflt, &pk); err != nil {
+			return fmt.Errorf("reading %s schema: %w", table, err)
+		}
+		if name == column {
+			return nil // already present
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	if _, err := db.Exec(fmt.Sprintf(`ALTER TABLE %s ADD COLUMN %s %s`, table, column, sqlType)); err != nil {
+		return fmt.Errorf("adding %s column: %w", column, err)
+	}
+	return nil
 }
 
 func (p *PeerStore) Close() error {
@@ -48,8 +88,12 @@ func (p *PeerStore) Close() error {
 
 // AllocateIP assigns (or returns the existing) tunnel-internal IP for
 // publicKey, out of 10.66.0.0/16. .0 and .1 in each /24 are skipped
-// (network address and a reserved slot for the server itself).
-func (p *PeerStore) AllocateIP(publicKey string) (string, error) {
+// (network address and a reserved slot for the server itself). userID and
+// locationID attribute the peer for usage reporting (see StatsReporter) —
+// every /connect call generates a brand new keypair (no key reuse across
+// reconnects), so a single user can accumulate many peer rows over time;
+// usage aggregation sums across all of a user's public keys, not just one.
+func (p *PeerStore) AllocateIP(publicKey, userID, locationID string) (string, error) {
 	var existing string
 	err := p.db.QueryRow(`SELECT assigned_ip FROM peer_allocations WHERE public_key = ?`, publicKey).Scan(&existing)
 	if err == nil {
@@ -59,7 +103,10 @@ func (p *PeerStore) AllocateIP(publicKey string) (string, error) {
 		return "", fmt.Errorf("looking up existing allocation: %w", err)
 	}
 
-	res, err := p.db.Exec(`INSERT INTO peer_allocations (public_key, assigned_ip) VALUES (?, '')`, publicKey)
+	res, err := p.db.Exec(
+		`INSERT INTO peer_allocations (public_key, assigned_ip, user_id, location_id) VALUES (?, '', ?, ?)`,
+		publicKey, userID, locationID,
+	)
 	if err != nil {
 		return "", fmt.Errorf("inserting allocation: %w", err)
 	}
@@ -73,6 +120,39 @@ func (p *PeerStore) AllocateIP(publicKey string) (string, error) {
 		return "", fmt.Errorf("saving assigned ip: %w", err)
 	}
 	return ip, nil
+}
+
+// PeerInfo is one row from peer_allocations, joined with nothing else —
+// callers needing the user's device_id or tier join against users.Store
+// themselves (kept decoupled since PeerStore and users.Store are separate
+// SQLite handles opened independently, per docs/BACKEND.md).
+type PeerInfo struct {
+	PublicKey  string
+	AssignedIP string
+	UserID     string
+	LocationID string
+	CreatedAt  time.Time
+}
+
+// AllPeers returns every known peer allocation — used by StatsReporter to
+// correlate live wgctrl device stats (keyed by public key) back to a user
+// and location for the admin usage dashboard.
+func (p *PeerStore) AllPeers() ([]PeerInfo, error) {
+	rows, err := p.db.Query(`SELECT public_key, assigned_ip, COALESCE(user_id, ''), COALESCE(location_id, ''), created_at FROM peer_allocations`)
+	if err != nil {
+		return nil, fmt.Errorf("querying peer allocations: %w", err)
+	}
+	defer rows.Close()
+
+	var out []PeerInfo
+	for rows.Next() {
+		var pi PeerInfo
+		if err := rows.Scan(&pi.PublicKey, &pi.AssignedIP, &pi.UserID, &pi.LocationID, &pi.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scanning peer allocation: %w", err)
+		}
+		out = append(out, pi)
+	}
+	return out, rows.Err()
 }
 
 func sequenceToIP(seq int64) string {

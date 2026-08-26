@@ -18,12 +18,12 @@ func newTestPeerStore(t *testing.T) *PeerStore {
 func TestAllocateIP_IsIdempotentPerKey(t *testing.T) {
 	s := newTestPeerStore(t)
 
-	first, err := s.AllocateIP("pubkey-a")
+	first, err := s.AllocateIP("pubkey-a", "user-1", "loc-1")
 	if err != nil {
 		t.Fatalf("first allocation: %v", err)
 	}
 
-	second, err := s.AllocateIP("pubkey-a")
+	second, err := s.AllocateIP("pubkey-a", "user-1", "loc-1")
 	if err != nil {
 		t.Fatalf("second allocation: %v", err)
 	}
@@ -36,8 +36,8 @@ func TestAllocateIP_IsIdempotentPerKey(t *testing.T) {
 func TestAllocateIP_DistinctKeysGetDistinctIPs(t *testing.T) {
 	s := newTestPeerStore(t)
 
-	a, _ := s.AllocateIP("pubkey-a")
-	b, _ := s.AllocateIP("pubkey-b")
+	a, _ := s.AllocateIP("pubkey-a", "user-1", "loc-1")
+	b, _ := s.AllocateIP("pubkey-b", "user-1", "loc-1")
 
 	if a == b {
 		t.Fatalf("expected distinct IPs, both got %s", a)

@@ -8,6 +8,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 //go:embed locations.json
@@ -33,6 +34,19 @@ func LoadLocations() ([]Location, error) {
 		return nil, fmt.Errorf("parsing locations.json: %w", err)
 	}
 	return locs, nil
+}
+
+// RelayHost strips the :port off RelayAddress — handed to clients so they
+// can measure their own latency to the relay (see docs/MOBILE.md "Latency").
+// Not new information: the full host:port is already embedded in the
+// WireGuard config's Endpoint field every /connect response returns, so
+// this doesn't expose anything a registered device couldn't already see.
+func (l Location) RelayHost() string {
+	host, _, ok := strings.Cut(l.RelayAddress, ":")
+	if !ok {
+		return l.RelayAddress
+	}
+	return host
 }
 
 func FindLocation(locs []Location, id string) (Location, bool) {

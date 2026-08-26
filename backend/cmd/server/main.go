@@ -4,9 +4,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"sy-vpn-backend/internal/api"
+	"sy-vpn-backend/internal/reporter"
 	"sy-vpn-backend/internal/servers"
+	"sy-vpn-backend/internal/stats"
 	"sy-vpn-backend/internal/users"
 )
 
@@ -42,7 +45,24 @@ func main() {
 		serverPublicKey = api.DefaultServerPublicKeyPlaceholder
 	}
 
-	server := api.NewServer(userStore, peerStore, locations, wgIface, serverPublicKey)
+	// Polls wgctrl for live peer stats (connected-now count, per-user
+	// traffic) — see internal/stats. 30s balances freshness against load on
+	// a single small VPS; the admin push below reuses this same collector
+	// rather than polling wgctrl a second time.
+	statsCollector := stats.NewCollector(wgIface, peerStore)
+	go statsCollector.Run(30*time.Second, nil)
+
+	// Optional: pushes usage snapshots to a separate admin dashboard project
+	// (Activation-Licenses) — no-ops if unset. See internal/reporter.
+	go reporter.Run(
+		statsCollector,
+		os.Getenv("ADMIN_INGEST_URL"),
+		os.Getenv("ADMIN_INGEST_TOKEN"),
+		60*time.Second,
+		nil,
+	)
+
+	server := api.NewServer(userStore, peerStore, locations, wgIface, serverPublicKey, statsCollector)
 
 	port := os.Getenv("PORT")
 	if port == "" {
