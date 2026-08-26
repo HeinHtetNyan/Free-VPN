@@ -4,5 +4,7 @@
          VpnAppTheme takes over. -->
     <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">#F3F5FA</item>
+        <item name="android:windowSplashScreenBackground">#F3F5FA</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
     </style>
 </resources>

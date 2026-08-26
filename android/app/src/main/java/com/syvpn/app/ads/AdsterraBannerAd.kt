@@ -1,13 +1,16 @@
 package com.syvpn.app.ads
 
 import android.annotation.SuppressLint
+import android.graphics.Color as AndroidColor
 import android.webkit.WebView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.syvpn.app.BuildConfig
+import com.syvpn.app.ui.theme.DarkBackground
 
 /**
  * Adsterra has no native Android SDK (see docs/MONETIZATION.md) — ads are
@@ -19,20 +22,24 @@ import com.syvpn.app.BuildConfig
  *
  * Zone ID comes from BuildConfig.ADSTERRA_BANNER_ZONE_ID, sourced from
  * android/local.properties (gitignored, real credentials never committed —
- * see android/local.properties.example). Falls back to a placeholder until
- * an Adsterra publisher account exists (docs/OPEN_QUESTIONS.md). Ad tag
- * markup below is a placeholder shape, not copied from Adsterra's real
- * docs — confirm the exact script snippet in the Adsterra dashboard before
- * shipping.
+ * see android/local.properties.example). Falls back to a placeholder if
+ * that file/env var is missing. Ad tag markup below is the real snippet
+ * from the Adsterra dashboard for the 320x50 Banner unit on sy-api.heinh.dev.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun AdsterraBannerAd(modifier: Modifier = Modifier) {
     AndroidView(
-        modifier = modifier.height(50.dp),
+        modifier = modifier.height(50.dp).background(DarkBackground),
         factory = { context ->
             WebView(context).apply {
+                // WebView paints opaque white by default — without this, the
+                // banner is a stark white bar against the app's dark theme
+                // for however long the ad script takes to load (or if it
+                // fails to load at all).
+                setBackgroundColor(AndroidColor.TRANSPARENT)
                 settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
                 loadDataWithBaseURL(
                     "https://www.adsterra.com",
                     adTagHtml(zoneId = BuildConfig.ADSTERRA_BANNER_ZONE_ID),
@@ -46,9 +53,16 @@ fun AdsterraBannerAd(modifier: Modifier = Modifier) {
 }
 
 private fun adTagHtml(zoneId: String): String = """
-    <html><body style="margin:0;padding:0;">
-    <!-- TODO: replace with Adsterra's actual Banner ad tag for zoneId=$zoneId
-         from the publisher dashboard once the account exists. -->
-    <div id="ad-container"></div>
+    <html><body style="margin:0;padding:0;background:#0A0F1C;">
+    <script>
+    atOptions = {
+    'key' : '$zoneId',
+    'format' : 'iframe',
+    'height' : 50,
+    'width' : 320,
+    'params' : {}
+    };
+    </script>
+    <script src="https://www.highrevenueformat.com/$zoneId/invoke.js"></script>
     </body></html>
 """.trimIndent()

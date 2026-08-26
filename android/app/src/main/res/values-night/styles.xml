@@ -2,5 +2,11 @@
     <!-- Matches the dark "night signal" background (Color.kt DarkBackground). -->
     <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">#0A0F1C</item>
+        <!-- Android 12+ auto-applies its own splash screen at cold start;
+             without these it defaults to a plain white background before
+             handing off to windowBackground above, which reads as a flash/
+             blink between white and the app's dark theme. -->
+        <item name="android:windowSplashScreenBackground">#0A0F1C</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
     </style>
 </resources>
