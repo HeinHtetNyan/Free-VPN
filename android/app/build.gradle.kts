@@ -17,6 +17,15 @@ val localProperties = Properties().apply {
 fun adsterraProperty(key: String): String =
     (localProperties.getProperty(key) ?: System.getenv(key) ?: "ADSTERRA_ZONE_ID_PLACEHOLDER")
 
+// Release upload key — a real secret, never committed. Kept in
+// android/keystore.properties (gitignored, see keystore.properties.example)
+// rather than hardcoded like the debug config above.
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val hasReleaseSigning = keystoreProperties.getProperty("storePassword") != null
+
 android {
     namespace = "com.syvpn.app"
     compileSdk = 35
@@ -48,12 +57,23 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

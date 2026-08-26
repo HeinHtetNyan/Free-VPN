@@ -61,14 +61,14 @@ Google can suspend a listing over an inaccurate Data Safety declaration — trea
 | App activity → other user-generated content | **Yes** | The optional issue-report message. Purpose: App functionality. Optional, user-initiated, not shared with third parties. |
 | Web browsing history | No | The whole point of a no-logs VPN — traffic contents/destinations aren't recorded. |
 | App info & performance → diagnostics | No | No crash-reporting SDK integrated yet. |
-| Device or other IDs | **Yes** | App-generated random UUID (not IMEI/Android ID), stored on-device, used to issue a connection token and attribute usage. See note below. |
+| Device or other IDs | **Yes** | App-generated random UUID (not IMEI/Android ID), stored on-device, used to issue a connection token and attribute usage. **Also**: the Adsterra banner (loaded via WebView, not their native SDK — see below), for advertising purposes, shared with Adsterra. |
 
 **Encryption**: Data is encrypted in transit — Yes (HTTPS/TLS to the backend, WireGuard encryption for the VPN tunnel itself).
 
 ### Two judgment calls before you submit
 
 1. **Anonymous ID classification.** It's app-generated and resets on uninstall — arguably not a "device ID" in Play's strict sense (that category is meant for hardware identifiers like IMEI). Declaring it anyway is the safer, more conservative choice.
-2. **Adsterra + Advertising ID.** Ads currently load via WebView, not Adsterra's SDK, and the real ad tag is still a placeholder (`AdsterraBannerAd.kt`). Whether this reads the Android Advertising ID depends on Adsterra's actual ad-tag script. Check Adsterra's own Data Safety disclosure once the real tag is wired in, and update this section — it likely needs "Device or other IDs → Advertising or marketing purpose → shared with Adsterra."
+2. **Adsterra + Advertising ID — resolved 2026-08-27.** The real ad tag is now wired in (`AdsterraBannerAd.kt`, zone ID from `local.properties`), loaded via WebView + JS, not Adsterra's native SDK — so this app never calls Android's `AdvertisingIdClient` API directly. However, Adsterra's own privacy policy (`adsterra.com`) states they collect advertising identifiers (AAID/IDFA) as part of serving ads generally. Per the same conservative principle as the anonymous-ID call above: declared as collected/shared with Adsterra for advertising purposes in the table above, even though this app's own code doesn't request it directly — the safer assumption given Adsterra's script runs inside the WebView with its own tracking mechanisms outside this app's control.
 
 ### Data deletion
 
@@ -78,5 +78,5 @@ There's no account, so uninstalling removes the on-device ID. Google's newer Dat
 
 - [x] **App icon (512×512)** — already have it, the real SY VPN logo, same one used for the launcher icon.
 - [x] **Phone screenshots (2+ needed)** — captured live from the test device: the connect screen (idle + latency shown) and the "Report an issue" dialog. Usable as-is; can re-capture from a release build instead of debug if preferred.
-- [ ] **Feature graphic (1024×500)** — not made yet. Optional for publishing, required for some promotional placements. Can be designed from the app's palette/logo on request.
+- [x] **Feature graphic (1024×500)** — `docs/store-assets/feature-graphic-1024x500.png`, built from the real logo and "night signal" palette.
 - [ ] **Signed release build (AAB)** — everything tested so far is a debug build signed with the debug keystore. Play Console needs a release build signed with a real upload key before submission.

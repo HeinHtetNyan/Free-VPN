@@ -20,21 +20,27 @@ Things still pending, mostly on the user's side. Check this before assuming some
 - [x] ~~Hosting provider for the 1-2 central servers~~ — resolved 2026-08-27: using the existing Shared VPS (`hhn.infinity.appboxes.co`), project files kept under the deliberately non-VPN-named `/home/appbox/SY/` (see `docs/DECISIONS.md`). `infra/scripts/setup-central-server.sh` has been run there: `wg0` up, listening UDP `51820`, server public key `4b3P37J2ZE3Hj2xDyCFPsFUWrJM+DZRCmE//5MRXdEo=`. Still open: deploying `backend/` itself to this host and setting `SERVER_PUBLIC_KEY` in its environment when that happens.
 
 ## Ads (Adsterra)
-- [ ] Adsterra publisher account + zone IDs.
-- [ ] Exact ad placement in the app flow (see `docs/MONETIZATION.md`).
+- [x] ~~Adsterra publisher account + zone IDs~~ — done: real Banner zone ID wired into `android/local.properties` (gitignored), read via `BuildConfig.ADSTERRA_BANNER_ZONE_ID`. See `docs/PLAY_STORE_LISTING.md` for the Data Safety declaration this implies.
+- [x] ~~Exact ad placement in the app flow~~ — resolved: fixed 320×50 inline banner on the connect screen, WebView-rendered (Adsterra has no native Android SDK). See `docs/MONETIZATION.md`.
 
 ## Backend hosting/deploy (updated 2026-08-26)
 - [x] ~~Public hostname for the backend~~ — resolved: `sy-api.heinh.dev`, via a dedicated Cloudflare Tunnel (id `97787a8f-a3e5-4a01-9d19-797e843790da`) on the existing `heinh.dev` zone/account, not `sawyuntech.com` (keeps it off the Saw Yun LLC brand, per the app-naming decision). DNS + tunnel config created via API; `tunnel/.env`'s token is in place locally, not yet running on the VPS.
 - [x] ~~Push, clone, and deploy~~ — done 2026-08-27: repo pushed, cloned onto `/home/appbox/SY/`, `backend/` + `tunnel/` both running. Verified for real: `https://sy-api.heinh.dev/health` → 200, and a live register→locations→connect smoke test produced a real peer on production `wg0`.
-- [ ] Add `VPS_DEPLOY_KEY` as a GitHub repo secret so future pushes to `backend/**` auto-deploy — the first deploy was done manually over SSH instead of waiting on this.
+- [x] ~~Add `VPS_DEPLOY_KEY` as a GitHub repo secret~~ — done and verified 2026-08-27: a real push triggered a real auto-deploy.
 
 ## Monetization (paid tier)
 - [ ] Whether/when to add a paid ad-free tier, and how (Google Play Billing is the natural fit for Android). Not designed yet — explicitly deferred.
 
 ## Play Store compliance
-- [x] ~~Privacy Policy — first draft~~ — see `docs/PRIVACY_POLICY_DRAFT.md`. Still needs: real placeholders filled in, legal review, and actually publishing it somewhere with a stable URL before it satisfies the Play Store requirement.
-- [ ] Play Console Data Safety form — fill out once auth + Adsterra integration are final.
+- [x] ~~Privacy Policy — first draft~~ — see `docs/PRIVACY_POLICY_DRAFT.md`, published live at `https://sy-api.heinh.dev/privacy`. Decided 2026-08-27: publish as-is, no formal legal review — solo/early-access app, policy verified against actual code behavior.
+- [x] ~~Play Console Data Safety form~~ — drafted in `docs/PLAY_STORE_LISTING.md`, including the Adsterra/Advertising ID declaration (resolved 2026-08-27 — see that doc).
+- [x] ~~Feature graphic (1024×500)~~ — `docs/store-assets/feature-graphic-1024x500.png`.
+- [x] ~~Signed release build~~ — done 2026-08-27: real upload keystore generated (`android/release.keystore`, gitignored — passwords in `android/keystore.properties`, also backed up to `~/Desktop/backup/sy-vpn-release-key/`), wired into `android/app/build.gradle.kts`'s release `signingConfig`. **The user must back this up somewhere durable (password manager / private cloud storage) — losing it blocks future Play Store updates.**
 - [ ] Re-check `docs/PLAY_STORE_COMPLIANCE.md` against Google's current policy text before first submission.
+- [ ] Actually submit to Play Console (create the app listing, upload the AAB, fill in the Data Safety form from the draft, upload the feature graphic + screenshots).
+
+## Launch scope (decided 2026-08-27)
+- [x] Launching with **Singapore only** — user's explicit choice, more locations later without blocking submission.
 
 ## Future / not urgent
 - [ ] DPI/censorship resistance — plain WireGuard is fingerprintable and blockable; Myanmar's filtering is known to do this. Evaluate DPI-resistant options (e.g. AmneziaWG) once the core app works end-to-end. See `docs/ARCHITECTURE.md`.
