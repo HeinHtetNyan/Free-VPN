@@ -19,7 +19,7 @@ func (s *Server) Router() http.Handler {
 
 	mux.HandleFunc("GET /privacy", s.handlePrivacy)
 
-	mux.HandleFunc("POST /auth/register", s.handleRegister)
+	mux.HandleFunc("POST /auth/register", RateLimitRegister(s.handleRegister))
 	mux.HandleFunc("GET /locations", auth.Require(s.Users, s.handleListLocations))
 	mux.HandleFunc("POST /connect", auth.Require(s.Users, s.handleConnect))
 	mux.HandleFunc("GET /stats", auth.Require(s.Users, s.handleStats))
