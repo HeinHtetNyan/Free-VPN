@@ -1,7 +1,7 @@
 [
   {
     "id": "singapore",
-    "display_name": "Singapore",
+    "display_name": "Server 1",
     "localtonet_region": "singapore",
     "relay_address": "9jaek6ndpk.localto.net:5965",
     "central_server": "central-1"
