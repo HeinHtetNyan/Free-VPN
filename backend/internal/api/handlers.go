@@ -73,8 +73,42 @@ func (s *Server) issuePeerConfig(loc servers.Location, ownerID string) (config, 
 		log.Printf("warning: could not register peer on WireGuard interface %q (expected until a central server is deployed): %v", s.WireGuardIfaceName, err)
 	}
 
+	s.revokeStalePeers(ownerID, keys.PublicKey)
+
 	config = servers.BuildClientConfig(loc, keys, s.ServerPublicKey, assignedIP, s.AmneziaParams, s.AmneziaEnabled)
 	return config, keys.PublicKey, nil
+}
+
+// revokeStalePeers drops every WireGuard peer previously issued to ownerID
+// other than currentPublicKey — the app never keeps an old config around
+// past its next /connect call, so once a fresh peer is live, any earlier
+// ones for the same owner are just dead weight left registered on the
+// interface (see docs/DECISIONS.md: this is what filled the admin dashboard
+// with dozens of never-connected ghost peers). Skips "friend:" owners:
+// those are manually admin-issued, one config per issuance, and an admin
+// may reissue the same label for a different device — reusing ownerID
+// there would risk revoking a friend's still-in-use config out from under
+// them, so friends stay purely admin-managed via /admin/friends/revoke.
+// Best-effort like RegisterPeer above: a lookup or revoke failure here
+// doesn't fail the /connect request, since the new peer already works
+// regardless.
+func (s *Server) revokeStalePeers(ownerID, currentPublicKey string) {
+	if ownerID == "" || strings.HasPrefix(ownerID, "friend:") {
+		return
+	}
+	previous, err := s.Peers.PeersForUser(ownerID)
+	if err != nil {
+		log.Printf("warning: could not list previous peers for %s: %v", ownerID, err)
+		return
+	}
+	for _, p := range previous {
+		if p.PublicKey == currentPublicKey {
+			continue
+		}
+		if err := servers.RemovePeer(s.WireGuardIfaceName, p.PublicKey); err != nil {
+			log.Printf("warning: could not revoke stale peer %s for %s: %v", p.PublicKey, ownerID, err)
+		}
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

@@ -103,8 +103,11 @@ func (p *PeerStore) Close() error {
 // (network address and a reserved slot for the server itself). userID and
 // locationID attribute the peer for usage reporting (see StatsReporter) —
 // every /connect call generates a brand new keypair (no key reuse across
-// reconnects), so a single user can accumulate many peer rows over time;
-// usage aggregation sums across all of a user's public keys, not just one.
+// reconnects), so a single user can accumulate many peer rows over time.
+// This is still an append-only historical record even though api.issuePeerConfig
+// now revokes a user's previous peer from the live WireGuard interface on
+// each reconnect (see PeersForUser) — only the newest row per user stays
+// registered there, the older rows just stop reporting live stats.
 func (p *PeerStore) AllocateIP(publicKey, userID, locationID string) (string, error) {
 	var existing string
 	err := p.db.QueryRow(`SELECT assigned_ip FROM peer_allocations WHERE public_key = ?`, publicKey).Scan(&existing)
@@ -153,6 +156,28 @@ func (p *PeerStore) AllPeers() ([]PeerInfo, error) {
 	rows, err := p.db.Query(`SELECT public_key, assigned_ip, COALESCE(user_id, ''), COALESCE(location_id, ''), created_at FROM peer_allocations`)
 	if err != nil {
 		return nil, fmt.Errorf("querying peer allocations: %w", err)
+	}
+	defer rows.Close()
+
+	var out []PeerInfo
+	for rows.Next() {
+		var pi PeerInfo
+		if err := rows.Scan(&pi.PublicKey, &pi.AssignedIP, &pi.UserID, &pi.LocationID, &pi.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scanning peer allocation: %w", err)
+		}
+		out = append(out, pi)
+	}
+	return out, rows.Err()
+}
+
+// PeersForUser returns every peer_allocations row for userID, oldest first —
+// used to find a user's previous peers when they reconnect with a fresh
+// keypair (see api.issuePeerConfig), so those can be revoked from the live
+// WireGuard interface instead of piling up as dead peers forever.
+func (p *PeerStore) PeersForUser(userID string) ([]PeerInfo, error) {
+	rows, err := p.db.Query(`SELECT public_key, assigned_ip, COALESCE(user_id, ''), COALESCE(location_id, ''), created_at FROM peer_allocations WHERE user_id = ? ORDER BY created_at ASC`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("querying peer allocations for user: %w", err)
 	}
 	defer rows.Close()
 

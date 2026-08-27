@@ -138,6 +138,74 @@ func TestFullFlow_RegisterListConnect(t *testing.T) {
 	}
 }
 
+// TestConnect_Reconnect_RevokeIsBestEffort covers the fix for the ghost-peer
+// pileup: reconnecting the same device now tries to revoke its previous
+// peer (see revokeStalePeers), but that revoke runs against the test's
+// deliberately bogus WireGuard interface and always fails — /connect must
+// still succeed (best-effort, like RegisterPeer), and peer_allocations must
+// still keep both historical rows (append-only, see PeerStore).
+func TestConnect_Reconnect_RevokeIsBestEffort(t *testing.T) {
+	srv := newTestServer(t)
+	router := srv.Router()
+
+	registerRec := httptest.NewRecorder()
+	router.ServeHTTP(registerRec, httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"device_id":"reconnect-device"}`)))
+	var registerResp struct {
+		Token string `json:"token"`
+	}
+	_ = json.Unmarshal(registerRec.Body.Bytes(), &registerResp)
+
+	doConnect := func() string {
+		req := httptest.NewRequest(http.MethodPost, "/connect", strings.NewReader(`{"location_id":"singapore"}`))
+		req.Header.Set("Authorization", "Bearer "+registerResp.Token)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("connect: expected 200 even though revoke of any previous peer fails against the test interface, got %d: %s", rec.Code, rec.Body.String())
+		}
+		var resp struct {
+			PublicKey string `json:"public_key"`
+			UserID    string `json:"user_id"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("decoding connect response: %v", err)
+		}
+		return resp.PublicKey
+	}
+
+	firstKey := doConnect()
+	secondKey := doConnect()
+	if firstKey == secondKey {
+		t.Fatalf("expected a fresh keypair on reconnect, got the same public key twice")
+	}
+
+	// Find this user's ID via the peer rows themselves (handleConnect
+	// doesn't return one in this response shape's earlier field name).
+	peers, err := srv.Peers.AllPeers()
+	if err != nil {
+		t.Fatalf("AllPeers: %v", err)
+	}
+	var userID string
+	var matched int
+	for _, p := range peers {
+		if p.PublicKey == firstKey || p.PublicKey == secondKey {
+			matched++
+			userID = p.UserID
+		}
+	}
+	if matched != 2 {
+		t.Fatalf("expected both connect calls' peers in peer_allocations, found %d", matched)
+	}
+
+	forUser, err := srv.Peers.PeersForUser(userID)
+	if err != nil {
+		t.Fatalf("PeersForUser: %v", err)
+	}
+	if len(forUser) != 2 {
+		t.Fatalf("expected both historical peer rows to remain (append-only), got %d", len(forUser))
+	}
+}
+
 func TestAdminFriends_RequiresAdminToken(t *testing.T) {
 	srv := newTestServer(t)
 	router := srv.Router()
