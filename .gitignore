@@ -10,6 +10,7 @@ backend/vpnapp-server
 backend/*.db
 backend/*.db-shm
 backend/*.db-wal
+infra/build/
 
 # Release signing — real secret, never commit
 android/release.keystore

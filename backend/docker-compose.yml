@@ -26,3 +26,9 @@ services:
       - BIND_HOST=127.0.0.1
     volumes:
       - ./data:/data
+      # Lets wgctrl's userspace client reach an AmneziaWG interface's UAPI
+      # socket (see ../infra/scripts/setup-amnezia-interface.sh) — the
+      # kernel wg0 path doesn't need this (netlink, not a socket file), but
+      # host networking alone doesn't share the host's filesystem. No-op
+      # (empty dir) on hosts that haven't set up an AmneziaWG interface.
+      - /var/run/amneziawg:/var/run/amneziawg
