@@ -30,6 +30,7 @@ func (s *Server) Router() http.Handler {
 	// handleAdminCreateFriend/handleAdminRevokeFriend.
 	mux.HandleFunc("POST /admin/friends", auth.RequireAdminToken(s.AdminToken, s.handleAdminCreateFriend))
 	mux.HandleFunc("POST /admin/friends/revoke", auth.RequireAdminToken(s.AdminToken, s.handleAdminRevokeFriend))
+	mux.HandleFunc("GET /admin/locations", auth.RequireAdminToken(s.AdminToken, s.handleAdminListLocations))
 
 	return mux
 }

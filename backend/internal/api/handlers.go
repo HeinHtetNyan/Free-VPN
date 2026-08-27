@@ -224,6 +224,25 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"connected_now": connectedNow})
 }
 
+// handleAdminListLocations lets the Activation-Licenses admin backend show a
+// location picker when issuing a friend config — handleListLocations already
+// does this for the app itself, but that's gated on a real device/user
+// token (auth.Require), which the admin backend doesn't have; this is the
+// same data behind the admin token instead. Omits relay_host (unlike
+// handleListLocations) since the admin picker has no latency measurement to
+// do with it.
+func (s *Server) handleAdminListLocations(w http.ResponseWriter, r *http.Request) {
+	type locationView struct {
+		ID          string `json:"id"`
+		DisplayName string `json:"display_name"`
+	}
+	views := make([]locationView, 0, len(s.Locations))
+	for _, l := range s.Locations {
+		views = append(views, locationView{ID: l.ID, DisplayName: l.DisplayName})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"locations": views})
+}
+
 // handleAdminCreateFriend issues a config the same way handleConnect does,
 // but for someone who never goes through the app's own /auth/register —
 // manually-shared configs for friends/beta testers (see
