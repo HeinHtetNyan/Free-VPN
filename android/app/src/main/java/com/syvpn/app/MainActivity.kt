@@ -35,31 +35,14 @@ class MainActivity : ComponentActivity() {
     private lateinit var apiClient: ApiClient
     private lateinit var vpnManager: VpnConnectionManager
     private var authToken: String? = null
-    private var pendingConfig: String? = null
 
     private val vpnPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
-        val config = pendingConfig
-        val locationId = selectedLocationId
-        pendingConfig = null
-        if (result.resultCode == RESULT_OK && config != null) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                try {
-                    vpnManager.connect(config)
-                    DeviceIdentity.storeLastConnectedConfig(this@MainActivity, config)
-                    if (locationId != null) {
-                        DeviceIdentity.storeLastConnectedLocationId(this@MainActivity, locationId)
-                    }
-                    launch(Dispatchers.Main) {
-                        connectionState = ConnectionUiState.Connected(locationId ?: "")
-                    }
-                } catch (e: Exception) {
-                    launch(Dispatchers.Main) {
-                        connectionState = ConnectionUiState.Error(e.message ?: e.toString())
-                    }
-                }
-            }
+        if (result.resultCode == RESULT_OK) {
+            // Permission granted — only now is it worth asking the server
+            // for a peer config; see performConnect().
+            performConnect()
         } else {
             connectionState = ConnectionUiState.Error("VPN permission denied")
         }
@@ -194,28 +177,40 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun onConnectClick() {
+        if (authToken == null || selectedLocationId == null) return
+        connectionState = ConnectionUiState.Connecting
+
+        // Ask for VPN permission (if not already granted) before ever
+        // asking the server for a peer config — asking the server first
+        // and then having the user deny the system dialog just mints a
+        // peer that's never used, which is how the server ended up with
+        // dozens of never-connected ghost peers (see docs/DECISIONS.md).
+        val permissionIntent: Intent? = vpnManager.permissionIntent(this)
+        if (permissionIntent != null) {
+            // performConnect() runs from vpnPermissionLauncher's callback
+            // once (if) the user grants it.
+            vpnPermissionLauncher.launch(permissionIntent)
+        } else {
+            performConnect()
+        }
+    }
+
+    /** Only ever called once VPN permission is confirmed granted (either
+     * already held, or just approved via vpnPermissionLauncher) — safe to
+     * ask the server for a peer config here since it's actually going to
+     * be used. */
+    private fun performConnect() {
         val token = authToken ?: return
         val locationId = selectedLocationId ?: return
-        connectionState = ConnectionUiState.Connecting
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val result = apiClient.connect(token, locationId)
-                val permissionIntent: Intent? = vpnManager.permissionIntent(this@MainActivity)
-                if (permissionIntent != null) {
-                    // Not connected yet — still waiting on the user to grant
-                    // VPN permission in the system dialog. vpnPermissionLauncher's
-                    // callback drives the actual connect() + Connected state
-                    // from here once (if) that's granted.
-                    pendingConfig = result.config
-                    launch(Dispatchers.Main) { vpnPermissionLauncher.launch(permissionIntent) }
-                } else {
-                    vpnManager.connect(result.config)
-                    DeviceIdentity.storeLastConnectedConfig(this@MainActivity, result.config)
-                    DeviceIdentity.storeLastConnectedLocationId(this@MainActivity, locationId)
-                    launch(Dispatchers.Main) {
-                        connectionState = ConnectionUiState.Connected(locationId)
-                    }
+                vpnManager.connect(result.config)
+                DeviceIdentity.storeLastConnectedConfig(this@MainActivity, result.config)
+                DeviceIdentity.storeLastConnectedLocationId(this@MainActivity, locationId)
+                launch(Dispatchers.Main) {
+                    connectionState = ConnectionUiState.Connected(locationId)
                 }
             } catch (e: Exception) {
                 launch(Dispatchers.Main) {
