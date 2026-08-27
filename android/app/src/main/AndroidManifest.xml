@@ -24,11 +24,12 @@
             </intent-filter>
         </activity>
 
-        <!-- The official WireGuard Android library's GoBackend drives this
-             exact service class internally (see vpn/VpnConnectionManager.kt)
-             — it is not a service we implement ourselves. -->
+        <!-- AmneziaWG's GoBackend drives this exact service class internally
+             (see vpn/VpnConnectionManager.kt) — it is not a service we
+             implement ourselves. Lives on AbstractBackend, not GoBackend
+             itself, in this library. -->
         <service
-            android:name="com.wireguard.android.backend.GoBackend$VpnService"
+            android:name="org.amnezia.awg.backend.AbstractBackend$VpnService"
             android:exported="false"
             android:permission="android.permission.BIND_VPN_SERVICE">
             <intent-filter>

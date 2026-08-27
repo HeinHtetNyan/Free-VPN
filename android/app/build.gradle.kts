@@ -28,12 +28,24 @@ val hasReleaseSigning = keystoreProperties.getProperty("storePassword") != null
 
 android {
     namespace = "com.syvpn.app"
-    compileSdk = 35
+    // Bumped from 35: amneziawg-android 2.3.7's androidx.core-ktx 1.17.0
+    // transitive dependency requires compileSdk 36 — see build.gradle.kts.
+    compileSdk = 36
 
     // Also renames the bundleRelease/.aab output (app-release.aab ->
     // sy-vpn-release.aab) — the APK rename below needs the extra
     // applicationVariants hook since AGP ignores archivesName for APKs.
     base.archivesName.set("sy-vpn")
+
+    // amneziawg-android's okhttp3 (DoH resolver) and jspecify both ship an
+    // identical multi-release-jar manifest at this path — arbitrarily pick
+    // one rather than failing the merge, the content doesn't differ in any
+    // way this app depends on.
+    packaging {
+        resources {
+            pickFirsts += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        }
+    }
 
     defaultConfig {
         applicationId = "com.syvpn.app"
@@ -117,9 +129,14 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
-    // Official WireGuard Android tunnel library — see ../../docs/MOBILE.md
-    // for why this over a community Flutter plugin.
-    implementation("com.wireguard.android:tunnel:1.0.20230706")
+    // AmneziaWG Android tunnel library — a drop-in fork of the official
+    // WireGuard one (same org.amnezia.awg.{backend,config} shape as
+    // com.wireguard.android.backend / com.wireguard.config) that understands
+    // the obfuscation params backend/internal/servers/amnezia.go embeds in
+    // every client config. See docs/ARCHITECTURE.md "Censorship resistance"
+    // and ../../docs/MOBILE.md for why this over a community Flutter plugin.
+    // Was com.wireguard.android:tunnel:1.0.20230706 (plain WireGuard) before.
+    implementation("com.zaneschepke:amneziawg-android:2.3.7")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

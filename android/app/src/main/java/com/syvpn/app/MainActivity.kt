@@ -18,7 +18,7 @@ import com.syvpn.app.ui.ConnectScreen
 import com.syvpn.app.ui.ReportUiState
 import com.syvpn.app.ui.theme.VpnAppTheme
 import com.syvpn.app.vpn.VpnConnectionManager
-import com.wireguard.android.backend.Tunnel
+import org.amnezia.awg.backend.Tunnel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
