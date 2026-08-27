@@ -49,16 +49,25 @@ func clamp(k *[32]byte) {
 // Registering clientKeys.PublicKey as an actual peer on the live server is a
 // separate step — see RegisterPeer — since a config alone doesn't make a
 // server accept a connection.
-func BuildClientConfig(loc Location, clientKeys KeyPair, serverPublicKey, assignedIP string) string {
+//
+// When amneziaEnabled, amnezia's obfuscation parameters are appended to the
+// [Interface] block — see docs/ARCHITECTURE.md "Censorship resistance" and
+// amnezia.go. These must exactly match what the server interface itself was
+// configured with (ConfigureAmneziaDevice) or the client's handshake won't
+// parse; the Android app must also be built against the AmneziaWG tunnel
+// library (amneziawg-android), not the stock WireGuard one, to understand
+// these fields at all.
+func BuildClientConfig(loc Location, clientKeys KeyPair, serverPublicKey, assignedIP string, amnezia AmneziaParams, amneziaEnabled bool) string {
+	iface := fmt.Sprintf("PrivateKey = %s\nAddress = %s/32\nDNS = 1.1.1.1\n", clientKeys.PrivateKey, assignedIP)
+	if amneziaEnabled {
+		iface += amnezia.interfaceLines()
+	}
 	return fmt.Sprintf(`[Interface]
-PrivateKey = %s
-Address = %s/32
-DNS = 1.1.1.1
-
+%s
 [Peer]
 PublicKey = %s
 Endpoint = %s
 AllowedIPs = 0.0.0.0/0, ::/0
 PersistentKeepalive = 25
-`, clientKeys.PrivateKey, assignedIP, serverPublicKey, loc.RelayAddress)
+`, iface, serverPublicKey, loc.RelayAddress)
 }

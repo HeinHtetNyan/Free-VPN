@@ -52,6 +52,23 @@ func main() {
 		serverPublicKey = api.DefaultServerPublicKeyPlaceholder
 	}
 
+	// AmneziaWG obfuscation — see internal/servers/amnezia.go and
+	// docs/ARCHITECTURE.md "Censorship resistance". Absent AWG_* env vars
+	// (infra/local-test, or before infra/scripts/generate-amnezia-params.sh
+	// has been run against a real deployment), this is plain WireGuard,
+	// same as every deployment before this feature existed.
+	amneziaParams, amneziaEnabled, err := servers.AmneziaParamsFromEnv()
+	if err != nil {
+		log.Fatalf("AmneziaWG config: %v", err)
+	}
+	if amneziaEnabled {
+		if err := servers.ConfigureAmneziaDevice(wgIface, amneziaParams); err != nil {
+			log.Printf("warning: could not apply AmneziaWG params to interface %q (expected until a real AmneziaWG-capable interface is deployed): %v", wgIface, err)
+		} else {
+			log.Printf("AmneziaWG obfuscation active on %q", wgIface)
+		}
+	}
+
 	// Polls wgctrl for live peer stats (connected-now count, per-user
 	// traffic) — see internal/stats. 30s balances freshness against load on
 	// a single small VPS; the admin push below reuses this same collector
@@ -71,7 +88,7 @@ func main() {
 		nil,
 	)
 
-	server := api.NewServer(userStore, peerStore, locations, wgIface, serverPublicKey, statsCollector, reportStore)
+	server := api.NewServer(userStore, peerStore, locations, wgIface, serverPublicKey, amneziaParams, amneziaEnabled, statsCollector, reportStore)
 
 	port := os.Getenv("PORT")
 	if port == "" {

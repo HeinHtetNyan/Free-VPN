@@ -7,12 +7,13 @@
 package stats
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
 	"time"
 
-	"golang.zx2c4.com/wireguard/wgctrl"
+	"github.com/advanced-wg/awgctrl-go"
 
 	"sy-vpn-backend/internal/servers"
 )
@@ -90,7 +91,7 @@ func (c *Collector) Poll() error {
 	}
 	defer client.Close()
 
-	dev, err := client.Device(c.wgIface)
+	dev, err := client.Device(context.Background(), c.wgIface)
 	if err != nil {
 		return fmt.Errorf("reading device %q (expected until a central server is deployed): %w", c.wgIface, err)
 	}

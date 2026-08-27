@@ -25,6 +25,12 @@ type Server struct {
 	Locations          []servers.Location
 	WireGuardIfaceName string
 	ServerPublicKey    string
+	// AmneziaEnabled reflects whether AWG_* env vars were set (see
+	// servers.AmneziaParamsFromEnv) — false means plain WireGuard, matching
+	// every deployment before docs/ARCHITECTURE.md's "Censorship resistance"
+	// work. AmneziaParams is the zero value when AmneziaEnabled is false.
+	AmneziaEnabled bool
+	AmneziaParams  servers.AmneziaParams
 	// Stats is nil in tests/environments that don't wire one up (see
 	// cmd/server/main.go) — handleStats degrades to a zero count rather than
 	// panicking or erroring, since "no data yet" is a normal startup state.
@@ -32,8 +38,12 @@ type Server struct {
 	Reports *reports.Store
 }
 
-func NewServer(userStore *users.Store, peerStore *servers.PeerStore, locations []servers.Location, wgIfaceName, serverPublicKey string, statsCollector *stats.Collector, reportStore *reports.Store) *Server {
-	return &Server{Users: userStore, Peers: peerStore, Locations: locations, WireGuardIfaceName: wgIfaceName, ServerPublicKey: serverPublicKey, Stats: statsCollector, Reports: reportStore}
+func NewServer(userStore *users.Store, peerStore *servers.PeerStore, locations []servers.Location, wgIfaceName, serverPublicKey string, amneziaParams servers.AmneziaParams, amneziaEnabled bool, statsCollector *stats.Collector, reportStore *reports.Store) *Server {
+	return &Server{
+		Users: userStore, Peers: peerStore, Locations: locations, WireGuardIfaceName: wgIfaceName, ServerPublicKey: serverPublicKey,
+		AmneziaParams: amneziaParams, AmneziaEnabled: amneziaEnabled,
+		Stats: statsCollector, Reports: reportStore,
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -134,11 +144,11 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	// server is deployed for real, promote this to a hard failure: a config
 	// that was never registered as a peer will never connect, and silently
 	// handing it out at that point would just be confusing.
-	if err := servers.RegisterPeer(s.WireGuardIfaceName, keys.PublicKey, assignedIP); err != nil {
+	if err := servers.RegisterPeer(s.WireGuardIfaceName, keys.PublicKey, assignedIP, s.AmneziaEnabled); err != nil {
 		log.Printf("warning: could not register peer on WireGuard interface %q (expected until a central server is deployed): %v", s.WireGuardIfaceName, err)
 	}
 
-	config := servers.BuildClientConfig(loc, keys, s.ServerPublicKey, assignedIP)
+	config := servers.BuildClientConfig(loc, keys, s.ServerPublicKey, assignedIP, s.AmneziaParams, s.AmneziaEnabled)
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"location_id": loc.ID,
