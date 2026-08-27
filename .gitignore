@@ -11,6 +11,8 @@ backend/*.db
 backend/*.db-shm
 backend/*.db-wal
 infra/build/
+# Generated friend/beta-tester WireGuard configs — real private keys, never commit
+infra/out/
 
 # Release signing — real secret, never commit
 android/release.keystore

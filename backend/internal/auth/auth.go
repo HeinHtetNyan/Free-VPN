@@ -5,6 +5,7 @@ package auth
 
 import (
 	"context"
+	"crypto/subtle"
 	"net/http"
 	"strings"
 
@@ -41,4 +42,25 @@ func Require(store *users.Store, next http.HandlerFunc) http.HandlerFunc {
 func UserFromContext(ctx context.Context) (*users.User, bool) {
 	u, ok := ctx.Value(userContextKey).(*users.User)
 	return u, ok
+}
+
+// RequireAdminToken wraps a handler so it only runs for requests carrying
+// "Authorization: Bearer <adminToken>" — a single shared secret (like
+// VPN_INGEST_TOKEN's ingest side, see docs/BACKEND.md), not a per-caller
+// credential, since only the Activation-Licenses admin backend calls these
+// routes. If adminToken is unset, every request is refused rather than
+// silently accepting anything.
+func RequireAdminToken(adminToken string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if adminToken == "" {
+			http.Error(w, "admin endpoints not configured", http.StatusServiceUnavailable)
+			return
+		}
+		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if !ok || token == "" || subtle.ConstantTimeCompare([]byte(token), []byte(adminToken)) != 1 {
+			http.Error(w, "missing or invalid admin token", http.StatusUnauthorized)
+			return
+		}
+		next(w, r)
+	}
 }

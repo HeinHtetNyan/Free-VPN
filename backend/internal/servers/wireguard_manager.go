@@ -56,6 +56,34 @@ func RegisterPeer(interfaceName, clientPublicKeyBase64, allowedIP string, amnezi
 	})
 }
 
+// RemovePeer drops a peer from the live WireGuard interface so it can no
+// longer connect or reconnect — the server rejects its handshake outright
+// from this point on, same as it would for a public key it never knew
+// about. Does not touch peer_allocations (see PeerStore: allocations are an
+// append-only historical record, not reclaimed), so AllPeers/stats keep the
+// row but it simply stops reporting connected once the interface drops it.
+func RemovePeer(interfaceName, clientPublicKeyBase64 string) error {
+	client, err := wgctrl.New()
+	if err != nil {
+		return fmt.Errorf("connecting to WireGuard control plane: %w", err)
+	}
+	defer client.Close()
+
+	pubKey, err := wgtypes.ParseKey(clientPublicKeyBase64)
+	if err != nil {
+		return fmt.Errorf("parsing client public key: %w", err)
+	}
+
+	return client.ConfigureDevice(context.Background(), interfaceName, wgtypes.Config{
+		Peers: []wgtypes.PeerConfig{
+			{
+				PublicKey: pubKey,
+				Remove:    true,
+			},
+		},
+	})
+}
+
 // ConfigureAmneziaDevice applies device-level AmneziaWG obfuscation
 // parameters to interfaceName. Called once at startup (see cmd/server/main.go)
 // rather than per-peer: Jc/Jmin/.../I5 are shared by the whole interface, so

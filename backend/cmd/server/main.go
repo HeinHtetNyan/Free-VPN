@@ -93,7 +93,12 @@ func main() {
 		nil,
 	)
 
-	server := api.NewServer(userStore, peerStore, locations, wgIface, serverPublicKey, amneziaParams, amneziaEnabled, statsCollector, reportStore)
+	// Gates POST /admin/friends[/revoke] — see internal/auth.RequireAdminToken.
+	// Empty means those routes refuse every request, same as an unset
+	// VPN_INGEST_TOKEN does for /api/vpn/ingest on the Activation-Licenses side.
+	adminToken := os.Getenv("VPN_ADMIN_TOKEN")
+
+	server := api.NewServer(userStore, peerStore, locations, wgIface, serverPublicKey, amneziaParams, amneziaEnabled, statsCollector, reportStore, adminToken)
 
 	port := os.Getenv("PORT")
 	if port == "" {

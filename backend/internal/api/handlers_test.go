@@ -36,8 +36,10 @@ func newTestServer(t *testing.T) *Server {
 	// expected to fail cleanly in tests (no real interface exists here
 	// either), matching the "best-effort" behavior documented in
 	// docs/BACKEND.md.
-	return NewServer(userStore, peerStore, locs, "wg-test-nonexistent", DefaultServerPublicKeyPlaceholder, servers.AmneziaParams{}, false, nil, nil)
+	return NewServer(userStore, peerStore, locs, "wg-test-nonexistent", DefaultServerPublicKeyPlaceholder, servers.AmneziaParams{}, false, nil, nil, testAdminToken)
 }
+
+const testAdminToken = "test-admin-token"
 
 func TestHealthEndpoint(t *testing.T) {
 	srv := newTestServer(t)
@@ -133,5 +135,71 @@ func TestFullFlow_RegisterListConnect(t *testing.T) {
 	router.ServeHTTP(badRec, badReq)
 	if badRec.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for unknown location, got %d", badRec.Code)
+	}
+}
+
+func TestAdminFriends_RequiresAdminToken(t *testing.T) {
+	srv := newTestServer(t)
+	router := srv.Router()
+
+	// No Authorization header at all.
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/admin/friends", strings.NewReader(`{"label":"alice"}`)))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 with no admin token, got %d", rec.Code)
+	}
+
+	// Wrong token.
+	req := httptest.NewRequest(http.MethodPost, "/admin/friends", strings.NewReader(`{"label":"alice"}`))
+	req.Header.Set("Authorization", "Bearer wrong-token")
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req)
+	if rec2.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 with wrong admin token, got %d", rec2.Code)
+	}
+}
+
+func TestAdminFriends_CreateIssuesConfig(t *testing.T) {
+	srv := newTestServer(t)
+	router := srv.Router()
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/friends", strings.NewReader(`{"label":"Alice Friend!"}`))
+	req.Header.Set("Authorization", "Bearer "+testAdminToken)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create friend: expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp struct {
+		Config    string `json:"config"`
+		PublicKey string `json:"public_key"`
+		OwnerID   string `json:"owner_id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decoding create-friend response: %v", err)
+	}
+	if !strings.Contains(resp.Config, "[Interface]") || resp.PublicKey == "" {
+		t.Fatalf("unexpected create-friend response: %+v", resp)
+	}
+	if !strings.HasPrefix(resp.OwnerID, "friend:alice-friend-") {
+		t.Fatalf("expected sanitized label in owner_id, got %q", resp.OwnerID)
+	}
+
+	// Revoking it goes through handleAdminRevokeFriend and calls
+	// servers.RemovePeer against the (deliberately bogus) test interface —
+	// this fails, and unlike RegisterPeer's best-effort handling in
+	// issuePeerConfig, revoke is a hard failure by design: silently
+	// reporting success when the peer wasn't actually removed from a real
+	// interface would defeat the entire point of "delete = revoke access".
+	// Only a real interface (the actual central server) can exercise the
+	// success path — see infra/local-test for the project's usual way of
+	// getting a real interface in a non-production environment.
+	revokeReq := httptest.NewRequest(http.MethodPost, "/admin/friends/revoke", strings.NewReader(`{"public_key":"`+resp.PublicKey+`"}`))
+	revokeReq.Header.Set("Authorization", "Bearer "+testAdminToken)
+	revokeRec := httptest.NewRecorder()
+	router.ServeHTTP(revokeRec, revokeReq)
+	if revokeRec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected revoke against a nonexistent test interface to fail with 500, got %d: %s", revokeRec.Code, revokeRec.Body.String())
 	}
 }

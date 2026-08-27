@@ -1,9 +1,13 @@
 package api
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"sy-vpn-backend/internal/auth"
 	"sy-vpn-backend/internal/reports"
@@ -36,14 +40,41 @@ type Server struct {
 	// panicking or erroring, since "no data yet" is a normal startup state.
 	Stats   *stats.Collector
 	Reports *reports.Store
+	// AdminToken gates the /admin/friends routes (see internal/auth.RequireAdminToken)
+	// — empty means those routes refuse every request. Set from VPN_ADMIN_TOKEN,
+	// shared only with the Activation-Licenses admin backend.
+	AdminToken string
 }
 
-func NewServer(userStore *users.Store, peerStore *servers.PeerStore, locations []servers.Location, wgIfaceName, serverPublicKey string, amneziaParams servers.AmneziaParams, amneziaEnabled bool, statsCollector *stats.Collector, reportStore *reports.Store) *Server {
+func NewServer(userStore *users.Store, peerStore *servers.PeerStore, locations []servers.Location, wgIfaceName, serverPublicKey string, amneziaParams servers.AmneziaParams, amneziaEnabled bool, statsCollector *stats.Collector, reportStore *reports.Store, adminToken string) *Server {
 	return &Server{
 		Users: userStore, Peers: peerStore, Locations: locations, WireGuardIfaceName: wgIfaceName, ServerPublicKey: serverPublicKey,
 		AmneziaParams: amneziaParams, AmneziaEnabled: amneziaEnabled,
-		Stats: statsCollector, Reports: reportStore,
+		Stats: statsCollector, Reports: reportStore, AdminToken: adminToken,
 	}
+}
+
+// issuePeerConfig generates a fresh keypair for ownerID at loc, registers it
+// on the live WireGuard interface, and renders its client config — the
+// shared core of handleConnect (real app users) and handleAdminCreateFriend
+// (manually-issued friend/beta-tester configs, see docs/OPEN_QUESTIONS.md).
+func (s *Server) issuePeerConfig(loc servers.Location, ownerID string) (config, publicKey string, err error) {
+	keys, err := servers.GenerateKeyPair()
+	if err != nil {
+		return "", "", fmt.Errorf("could not generate keys: %w", err)
+	}
+
+	assignedIP, err := s.Peers.AllocateIP(keys.PublicKey, ownerID, loc.ID)
+	if err != nil {
+		return "", "", fmt.Errorf("could not allocate tunnel address: %w", err)
+	}
+
+	if err := servers.RegisterPeer(s.WireGuardIfaceName, keys.PublicKey, assignedIP, s.AmneziaEnabled); err != nil {
+		log.Printf("warning: could not register peer on WireGuard interface %q (expected until a central server is deployed): %v", s.WireGuardIfaceName, err)
+	}
+
+	config = servers.BuildClientConfig(loc, keys, s.ServerPublicKey, assignedIP, s.AmneziaParams, s.AmneziaEnabled)
+	return config, keys.PublicKey, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -125,35 +156,17 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keys, err := servers.GenerateKeyPair()
+	config, publicKey, err := s.issuePeerConfig(loc, user.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not generate keys")
+		log.Printf("issuing peer config for user %s: %v", user.ID, err)
+		writeError(w, http.StatusInternalServerError, "could not issue config")
 		return
 	}
-
-	assignedIP, err := s.Peers.AllocateIP(keys.PublicKey, user.ID, loc.ID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not allocate tunnel address")
-		return
-	}
-
-	// Best-effort: register the peer on the live WireGuard interface so it
-	// can actually connect. This fails cleanly (logged, not returned as an
-	// HTTP error) everywhere except the real central server, since no such
-	// interface exists yet — see docs/OPEN_QUESTIONS.md. Once a central
-	// server is deployed for real, promote this to a hard failure: a config
-	// that was never registered as a peer will never connect, and silently
-	// handing it out at that point would just be confusing.
-	if err := servers.RegisterPeer(s.WireGuardIfaceName, keys.PublicKey, assignedIP, s.AmneziaEnabled); err != nil {
-		log.Printf("warning: could not register peer on WireGuard interface %q (expected until a central server is deployed): %v", s.WireGuardIfaceName, err)
-	}
-
-	config := servers.BuildClientConfig(loc, keys, s.ServerPublicKey, assignedIP, s.AmneziaParams, s.AmneziaEnabled)
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"location_id": loc.ID,
 		"config":      config,
-		"public_key":  keys.PublicKey,
+		"public_key":  publicKey,
 		"user_id":     user.ID,
 	})
 }
@@ -209,4 +222,114 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 		connectedNow = s.Stats.Current().ConnectedNow
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"connected_now": connectedNow})
+}
+
+// handleAdminCreateFriend issues a config the same way handleConnect does,
+// but for someone who never goes through the app's own /auth/register —
+// manually-shared configs for friends/beta testers (see
+// infra/scripts/generate-friend-config.sh, which this replaces once the
+// Activation-Licenses "VPN Friends" tab exists). ownerID is a synthetic
+// "friend:<label>-<random>" string, not a real users.Store row — friends
+// never authenticate against this backend themselves, so there's nothing
+// for a users row to represent.
+func (s *Server) handleAdminCreateFriend(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Label      string `json:"label"`
+		LocationID string `json:"location_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	var loc servers.Location
+	if body.LocationID != "" {
+		var ok bool
+		loc, ok = servers.FindLocation(s.Locations, body.LocationID)
+		if !ok {
+			writeError(w, http.StatusNotFound, "unknown location_id")
+			return
+		}
+	} else if len(s.Locations) > 0 {
+		loc = s.Locations[0]
+	} else {
+		writeError(w, http.StatusServiceUnavailable, "no locations configured")
+		return
+	}
+
+	suffix, err := randomHex(4)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not generate id")
+		return
+	}
+	ownerID := "friend:" + sanitizeLabel(body.Label) + "-" + suffix
+
+	config, publicKey, err := s.issuePeerConfig(loc, ownerID)
+	if err != nil {
+		log.Printf("issuing friend peer config (owner %s): %v", ownerID, err)
+		writeError(w, http.StatusInternalServerError, "could not issue config")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"location_id": loc.ID,
+		"config":      config,
+		"public_key":  publicKey,
+		"owner_id":    ownerID,
+	})
+}
+
+// handleAdminRevokeFriend drops a previously-issued peer from the live
+// WireGuard interface so its config immediately stops working. Takes the
+// public key in a JSON body rather than a URL path segment — WireGuard
+// public keys are standard base64 and can contain '/', which would collide
+// with path routing.
+func (s *Server) handleAdminRevokeFriend(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		PublicKey string `json:"public_key"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.PublicKey == "" {
+		writeError(w, http.StatusBadRequest, "public_key is required")
+		return
+	}
+
+	if err := servers.RemovePeer(s.WireGuardIfaceName, body.PublicKey); err != nil {
+		log.Printf("revoking peer %s on %q: %v", body.PublicKey, s.WireGuardIfaceName, err)
+		writeError(w, http.StatusInternalServerError, "could not revoke peer")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func randomHex(n int) (string, error) {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("generating random suffix: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+// sanitizeLabel keeps only characters safe to embed in a peer_allocations
+// user_id / device_id string, so a friend's display name can't inject
+// anything unexpected into storage or logs. Falls back to "friend" if
+// nothing safe survives.
+func sanitizeLabel(label string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(label) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == ' ' || r == '-' || r == '_':
+			b.WriteRune('-')
+		}
+	}
+	out := strings.Trim(b.String(), "-")
+	if out == "" {
+		return "friend"
+	}
+	if len(out) > 40 {
+		out = out[:40]
+	}
+	return out
 }

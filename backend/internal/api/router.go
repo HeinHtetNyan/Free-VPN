@@ -25,5 +25,11 @@ func (s *Server) Router() http.Handler {
 	mux.HandleFunc("GET /stats", auth.Require(s.Users, s.handleStats))
 	mux.HandleFunc("POST /report", auth.Require(s.Users, s.handleReport))
 
+	// Admin-only: called by the Activation-Licenses admin backend, never by
+	// the app itself — see internal/auth.RequireAdminToken and
+	// handleAdminCreateFriend/handleAdminRevokeFriend.
+	mux.HandleFunc("POST /admin/friends", auth.RequireAdminToken(s.AdminToken, s.handleAdminCreateFriend))
+	mux.HandleFunc("POST /admin/friends/revoke", auth.RequireAdminToken(s.AdminToken, s.handleAdminRevokeFriend))
+
 	return mux
 }
