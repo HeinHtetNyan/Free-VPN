@@ -74,6 +74,16 @@ func main() {
 		}
 	}
 
+	// Re-adds every still-active friend peer to the live interface — see
+	// ResyncFriends. Peers don't survive an interface recreation (e.g. after
+	// a host reboot) the way the interface's own obfuscation params do
+	// (those get reasserted above on every startup); friends never call any
+	// endpoint of their own to naturally repair this the way app users'
+	// /connect does. Best-effort, same as ConfigureAmneziaDevice above.
+	if err := servers.ResyncFriends(peerStore, wgIface, os.Getenv("ADMIN_INGEST_URL"), os.Getenv("ADMIN_INGEST_TOKEN"), amneziaEnabled); err != nil {
+		log.Printf("warning: friend resync failed: %v", err)
+	}
+
 	// Polls wgctrl for live peer stats (connected-now count, per-user
 	// traffic) — see internal/stats. 30s balances freshness against load on
 	// a single small VPS; the admin push below reuses this same collector
