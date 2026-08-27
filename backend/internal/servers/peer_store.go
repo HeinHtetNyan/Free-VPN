@@ -12,13 +12,25 @@ import (
 // users.Store uses, so both are on one durable DB file per docs/BACKEND.md.
 // IP allocation here is a simple monotonically-increasing sequence — it does
 // not reclaim IPs from peers that are later removed. Fine at the scale this
-// is starting at; revisit (e.g. reuse freed IPs) if the 10.66.0.0/16 pool
-// (~65k addresses) ever becomes a real constraint.
+// is starting at; revisit (e.g. reuse freed IPs) if the pool (~65k
+// addresses) ever becomes a real constraint.
 type PeerStore struct {
 	db *sql.DB
+	// subnetBase is the "A.B" prefix of the /16 assignedIP comes from — must
+	// match whatever WG_INTERFACE's own `ip addr` subnet actually is (10.66
+	// for wg0, 10.67 for awg0 — see infra/scripts/setup-central-server.sh /
+	// setup-amnezia-interface.sh). Get this wrong and AllocateIP hands out
+	// addresses outside the interface's routed range — see docs/DECISIONS.md
+	// 2026-08-27: this shipped hardcoded to "10.66" even after awg0
+	// (10.67.0.0/16) went live, so a real client got assigned 10.66.0.33 on
+	// an interface that only routes 10.67.0.0/16.
+	subnetBase string
 }
 
-func NewPeerStore(dbPath string) (*PeerStore, error) {
+func NewPeerStore(dbPath, subnetBase string) (*PeerStore, error) {
+	if subnetBase == "" {
+		subnetBase = "10.66"
+	}
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
@@ -51,7 +63,7 @@ func NewPeerStore(dbPath string) (*PeerStore, error) {
 		return nil, err
 	}
 
-	return &PeerStore{db: db}, nil
+	return &PeerStore{db: db, subnetBase: subnetBase}, nil
 }
 
 func addColumnIfMissing(db *sql.DB, table, column, sqlType string) error {
@@ -87,7 +99,7 @@ func (p *PeerStore) Close() error {
 }
 
 // AllocateIP assigns (or returns the existing) tunnel-internal IP for
-// publicKey, out of 10.66.0.0/16. .0 and .1 in each /24 are skipped
+// publicKey, out of p.subnetBase.0.0/16. .0 and .1 in each /24 are skipped
 // (network address and a reserved slot for the server itself). userID and
 // locationID attribute the peer for usage reporting (see StatsReporter) —
 // every /connect call generates a brand new keypair (no key reuse across
@@ -115,7 +127,7 @@ func (p *PeerStore) AllocateIP(publicKey, userID, locationID string) (string, er
 		return "", fmt.Errorf("reading allocation id: %w", err)
 	}
 
-	ip := sequenceToIP(id)
+	ip := sequenceToIP(id, p.subnetBase)
 	if _, err := p.db.Exec(`UPDATE peer_allocations SET assigned_ip = ? WHERE id = ?`, ip, id); err != nil {
 		return "", fmt.Errorf("saving assigned ip: %w", err)
 	}
@@ -155,9 +167,9 @@ func (p *PeerStore) AllPeers() ([]PeerInfo, error) {
 	return out, rows.Err()
 }
 
-func sequenceToIP(seq int64) string {
+func sequenceToIP(seq int64, subnetBase string) string {
 	offset := seq + 1 // start at .2, not .0/.1
 	octet3 := (offset / 254) % 256
 	octet4 := (offset % 254) + 2
-	return fmt.Sprintf("10.66.%d.%d", octet3, octet4)
+	return fmt.Sprintf("%s.%d.%d", subnetBase, octet3, octet4)
 }

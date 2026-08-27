@@ -22,7 +22,7 @@ func newTestServer(t *testing.T) *Server {
 	}
 	t.Cleanup(func() { _ = userStore.Close() })
 
-	peerStore, err := servers.NewPeerStore(dbPath)
+	peerStore, err := servers.NewPeerStore(dbPath, "10.66")
 	if err != nil {
 		t.Fatalf("servers.NewPeerStore: %v", err)
 	}

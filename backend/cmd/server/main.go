@@ -30,7 +30,12 @@ func main() {
 	}
 	defer userStore.Close()
 
-	peerStore, err := servers.NewPeerStore(dbPath)
+	// Must match WG_INTERFACE's own `ip addr` subnet — 10.66 for wg0
+	// (infra/scripts/setup-central-server.sh), 10.67 for awg0
+	// (infra/scripts/setup-amnezia-interface.sh) — or AllocateIP hands out
+	// addresses the interface doesn't actually route. See peer_store.go.
+	subnetBase := os.Getenv("WG_SUBNET_BASE")
+	peerStore, err := servers.NewPeerStore(dbPath, subnetBase)
 	if err != nil {
 		log.Fatalf("opening peer store at %s: %v", dbPath, err)
 	}

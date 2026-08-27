@@ -7,7 +7,7 @@ import (
 
 func newTestPeerStore(t *testing.T) *PeerStore {
 	t.Helper()
-	s, err := NewPeerStore(filepath.Join(t.TempDir(), "test.db"))
+	s, err := NewPeerStore(filepath.Join(t.TempDir(), "test.db"), "10.66")
 	if err != nil {
 		t.Fatalf("NewPeerStore: %v", err)
 	}
@@ -41,6 +41,38 @@ func TestAllocateIP_DistinctKeysGetDistinctIPs(t *testing.T) {
 
 	if a == b {
 		t.Fatalf("expected distinct IPs, both got %s", a)
+	}
+}
+
+func TestAllocateIP_UsesConfiguredSubnetBase(t *testing.T) {
+	s, err := NewPeerStore(filepath.Join(t.TempDir(), "test.db"), "10.67")
+	if err != nil {
+		t.Fatalf("NewPeerStore: %v", err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+
+	ip, err := s.AllocateIP("pubkey-a", "user-1", "loc-1")
+	if err != nil {
+		t.Fatalf("AllocateIP: %v", err)
+	}
+	if got, want := ip[:5], "10.67"; got != want {
+		t.Fatalf("expected an IP in the configured 10.67 subnet, got %s", ip)
+	}
+}
+
+func TestAllocateIP_EmptySubnetBaseDefaultsTo10_66(t *testing.T) {
+	s, err := NewPeerStore(filepath.Join(t.TempDir(), "test.db"), "")
+	if err != nil {
+		t.Fatalf("NewPeerStore: %v", err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+
+	ip, err := s.AllocateIP("pubkey-a", "user-1", "loc-1")
+	if err != nil {
+		t.Fatalf("AllocateIP: %v", err)
+	}
+	if got, want := ip[:5], "10.66"; got != want {
+		t.Fatalf("expected the default 10.66 subnet, got %s", ip)
 	}
 }
 
