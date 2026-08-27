@@ -79,4 +79,4 @@ There's no account, so uninstalling removes the on-device ID. Google's newer Dat
 - [x] **App icon (512×512)** — already have it, the real SY VPN logo, same one used for the launcher icon.
 - [x] **Phone screenshots (2+ needed)** — captured live from the test device: the connect screen (idle + latency shown) and the "Report an issue" dialog. Usable as-is; can re-capture from a release build instead of debug if preferred.
 - [x] **Feature graphic (1024×500)** — `docs/store-assets/feature-graphic-1024x500.png`, built from the real logo and "night signal" palette.
-- [ ] **Signed release build (AAB)** — everything tested so far is a debug build signed with the debug keystore. Play Console needs a release build signed with a real upload key before submission.
+- [x] **Signed release build (AAB)** — `android/app/build/outputs/bundle/release/sy-vpn-release.aab`, signed with `android/release.keystore` (verified via `keytool -printcert`, not the debug keystore). Rebuild after any code change before uploading — this one's from 2026-08-27.

@@ -33,7 +33,7 @@ Play Console requires a "Data safety" declaration that must match real app behav
 - [x] Write the actual Privacy Policy — `docs/PRIVACY_POLICY_DRAFT.md`, live at `GET /privacy` once pushed/deployed.
 - [x] Draft app store listing copy — `docs/PLAY_STORE_LISTING.md`.
 - [x] Draft the Data Safety form — `docs/PLAY_STORE_LISTING.md`, flagged for two judgment calls (anonymous ID classification, Adsterra ad-ID) once the real ad tag is wired in.
-- [ ] Get a real Adsterra zone ID wired into `AdsterraBannerAd.kt` / `local.properties`, then re-check the Data Safety form's advertising-ID answer against Adsterra's actual behavior.
-- [ ] Build a signed release AAB (everything tested so far is a debug build).
-- [ ] Feature graphic (1024×500) — optional for publishing, not yet made.
+- [x] Get a real Adsterra zone ID wired into `AdsterraBannerAd.kt` / `local.properties` — done, see `PLAY_STORE_LISTING.md`.
+- [x] Build a signed release AAB — done, see `PLAY_STORE_LISTING.md`.
+- [x] Feature graphic (1024×500) — done, `docs/store-assets/feature-graphic-1024x500.png`.
 - [ ] Re-check this list against Google's current published VPN/Ads policy text before first submission — don't rely solely on this doc at submission time.
