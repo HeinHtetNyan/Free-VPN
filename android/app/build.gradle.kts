@@ -50,9 +50,9 @@ android {
     defaultConfig {
         applicationId = "com.syvpn.app"
         minSdk = 26 // VpnService + WireGuard tunnel library both fine at this floor
-        targetSdk = 35
-        versionCode = 2
-        versionName = "0.1.1"
+        targetSdk = 36
+        versionCode = 3
+        versionName = "0.1.2"
 
         buildConfigField(
             "String",
