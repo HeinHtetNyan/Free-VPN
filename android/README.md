@@ -25,7 +25,7 @@ android/
         └── ads/AdsterraBannerAd.kt      WebView ad, Banner-only per Play Store compliance
 ```
 
-`ApiClient.DEV_BASE_URL` points at the real production backend, `https://sy-api.heinh.dev` (updated 2026-08-27 — previously the emulator-only `10.0.2.2` alias).
+`ApiClient.DEV_BASE_URL` points at the real production backend, `https://sy-api.malmah.fyi` (updated 2026-08-30 — previously the emulator-only `10.0.2.2` alias).
 
 ## Visual design (2026-08-27)
 

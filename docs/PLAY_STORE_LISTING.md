@@ -33,7 +33,7 @@ REPORT WHAT YOU SEE
 Some mobile carriers restrict VPN traffic. If SY VPN isn't working well on your network, the in-app "Report an issue" button lets you tell us your carrier and what happened in a few taps — so we can find and fix it.
 
 PRIVACY BY DESIGN
-SY VPN doesn't ask for your name, email, or phone number. Your anonymous ID lives only on your device until you uninstall the app. Full privacy policy: sy-api.heinh.dev/privacy
+SY VPN doesn't ask for your name, email, or phone number. Your anonymous ID lives only on your device until you uninstall the app. Full privacy policy: sy-api.malmah.fyi/privacy
 
 SY VPN is in early access — more server locations are being added over time. Right now, SY VPN connects you through our Singapore relay.
 ```
@@ -44,7 +44,7 @@ SY VPN is in early access — more server locations are being added over time. R
 
 **Privacy policy URL**
 ```
-https://sy-api.heinh.dev/privacy
+https://sy-api.malmah.fyi/privacy
 ```
 
 ## 2. Data Safety form
@@ -72,7 +72,7 @@ Google can suspend a listing over an inaccurate Data Safety declaration — trea
 
 ### Data deletion
 
-There's no account, so uninstalling removes the on-device ID. Google's newer Data Safety requirements increasingly expect an explicit deletion path even for anonymous data — state in the form that users can request deletion of their server-side usage/report records by emailing **hhn@heinh.dev**.
+There's no account, so uninstalling removes the on-device ID. Google's newer Data Safety requirements increasingly expect an explicit deletion path even for anonymous data — state in the form that users can request deletion of their server-side usage/report records by emailing **privacy@malmah.fyi**.
 
 ## 3. Asset checklist
 

@@ -4,6 +4,12 @@ Newest first. Each entry: what was decided, why, and what it rules out — so we
 
 ---
 
+### 2026-08-30 — Backend public hostname replaced with sy-api.malmah.fyi
+
+The previous control-plane hostname had no DPI-resistance of its own (open item, see `docs/OPEN_QUESTIONS.md`) — only the WireGuard tunnel protocol got obfuscation treatment (AmneziaWG); a Myanmar DPI block on the plain HTTPS control-plane domain would still kill registration/`/connect` even with the tunnel itself unblockable. Rather than add a fallback URL alongside the existing one, replaced it outright with a new, previously-unseen domain (`malmah.fyi`, bought at Namecheap, DNS moved to Cloudflare) with no prior blocklist history. Subdomain kept as `sy-api` for consistency with the old naming, even though that reintroduces an "SY" hint onto an otherwise-neutral domain — a deliberate tradeoff for operator legibility over the stricter unlinkability goal from the 2026-08-27 entries below.
+
+Same Cloudflare Tunnel (`97787a8f-a3e5-4a01-9d19-797e843790da`) — added `sy-api.malmah.fyi` as a new published application route → `http://localhost:8080`, removed the old route once the new one was confirmed working. `android/.../data/ApiClient.kt`'s `DEV_BASE_URL` updated to match. This is a straight swap, not a fallback list — still a single point of failure, just on a fresh domain than before.
+
 ### 2026-08-27 — Verified on a real physical device over wireless adb; two real bugs found and fixed
 
 User asked to install the app on their own phone rather than an emulator. Used wireless `adb` (already paired, auto-discovered via `adb mdns services`) — no cable, no emulator. This is meaningfully stronger verification than `infra/local-test/`: it exercises the real `VpnService`/`GoBackend` Android integration and the real system permission dialog, neither of which a Docker container touches.
@@ -15,9 +21,9 @@ First real end-to-end result: a genuine WireGuard handshake through the real Loc
 
 Also fixed as a side effect of doing real rebuild-and-reinstall cycles: each Docker build run was generating a **fresh random debug-signing keystore** (no persisted `~/.gradle`/`~/.android` across ephemeral container runs), so a rebuilt APK couldn't be installed over the previous one without `adb uninstall` first (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`). Generated and committed `android/app/debug.keystore`, pinned explicitly in `build.gradle.kts`'s `signingConfigs.debug` — every build now signs identically. Standard well-known debug alias/password, not a secret.
 
-### 2026-08-27 — Backend public hostname: sy-api.heinh.dev, not sawyuntech.com
+### 2026-08-27 — Backend public hostname: a personal domain, not sawyuntech.com
 
-Needed a domain for the backend's Cloudflare Tunnel. Deliberately did not reuse `sawyuntech.com` (already used for other apps, but it's the Saw Yun LLC company domain — reusing it would undercut the earlier app-naming decision to keep this project disconnected from that brand). User's own `heinh.dev` (already used for TK Plastic Press/BonBon/code-server, unrelated to any company brand) instead. Tunnel created via API (id `97787a8f-a3e5-4a01-9d19-797e843790da`), DNS record `sy-api.heinh.dev` → proxied CNAME to the tunnel, ingress routes to `http://localhost:8080` (matches `backend/`'s default `PORT`). Not yet running — `tunnel/.env` has the real token locally, waiting on the repo being pushed/cloned onto the VPS.
+Needed a domain for the backend's Cloudflare Tunnel. Deliberately did not reuse `sawyuntech.com` (already used for other apps, but it's the Saw Yun LLC company domain — reusing it would undercut the earlier app-naming decision to keep this project disconnected from that brand). Used a personal domain unrelated to any company brand instead (superseded 2026-08-30, see entry above). Tunnel created via API (id `97787a8f-a3e5-4a01-9d19-797e843790da`), DNS record → proxied CNAME to the tunnel, ingress routes to `http://localhost:8080` (matches `backend/`'s default `PORT`).
 
 ### 2026-08-27 — Central server hosting: the existing Shared VPS, project kept under a non-VPN folder name
 

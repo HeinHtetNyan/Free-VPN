@@ -43,7 +43,7 @@ Everything buildable without external accounts is done. Pick up with:
 **Done since 2026-08-26:**
 - **Central server** — Shared VPS, project at `/home/appbox/SY/` (deliberately not VPN-named — see `docs/DECISIONS.md`). `wg0` up, listening UDP `51820`, server public key `4b3P37J2ZE3Hj2xDyCFPsFUWrJM+DZRCmE//5MRXdEo=`.
 - **Backend deployed** — `backend/` running there (`docker compose`, `network_mode: host` + `cap_add: NET_ADMIN` for `wgctrl`'s netlink access to `wg0`), bound to `127.0.0.1:8080` only.
-- **Public hostname** — `sy-api.heinh.dev` via a dedicated Cloudflare Tunnel (not `sawyuntech.com` — see `docs/DECISIONS.md` for why), live and serving real traffic.
+- **Public hostname** — `sy-api.malmah.fyi` via a dedicated Cloudflare Tunnel (not `sawyuntech.com` — see `docs/DECISIONS.md` for why), live and serving real traffic.
 - **LocalToNet connected** — account set up, first tunnel (Singapore) created, their client running as a systemd service on the same VPS with the real device token.
 - **Adsterra wiring** — `android/` reads the zone ID from `BuildConfig.ADSTERRA_BANNER_ZONE_ID`, sourced from gitignored `android/local.properties`. Dropping a real zone ID in needs no code changes.
 - **Deploy pipeline** — GitHub Actions workflow + `deploy.sh` exist and are pushed; first deploy was done manually over SSH rather than waiting on the secret below.
@@ -61,7 +61,7 @@ Everything buildable without external accounts is done. Pick up with:
 
 The app is named **SY VPN** (`com.syvpn.app`). **The whole mechanism has been validated end-to-end for real** — locally, in production, and on an actual phone over the real internet, not just "should work":
 
-- **`backend/`** — fully implemented, tested (`go test ./...`), containerized, and **deployed to production** at `https://sy-api.heinh.dev` (Shared VPS `/home/appbox/SY/`). Anonymous device-bound auth, SQLite persistence, real WireGuard key generation, live peer registration via `wgctrl` against the real `wg0`. See `backend/README.md`.
+- **`backend/`** — fully implemented, tested (`go test ./...`), containerized, and **deployed to production** at `https://sy-api.malmah.fyi` (Shared VPS `/home/appbox/SY/`). Anonymous device-bound auth, SQLite persistence, real WireGuard key generation, live peer registration via `wgctrl` against the real `wg0`. See `backend/README.md`.
 - **`infra/local-test/`** — a self-contained Docker-based integration test proving the mechanism works with zero changes to this dev machine's networking. Superseded in importance by the real production deployment below, but still useful for future local iteration. See `infra/local-test/README.md`.
 - **Central WireGuard server** — live on the Shared VPS, `wg0` up on UDP `51820`, systemd-managed.
 - **LocalToNet** — real account, tunnel connected (`vbznwgzpdl.localto.net:2020` → Singapore), their client running as a systemd service on the same VPS.

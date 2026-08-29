@@ -24,7 +24,7 @@ import com.syvpn.app.ui.theme.DarkBackground
  * android/local.properties (gitignored, real credentials never committed —
  * see android/local.properties.example). Falls back to a placeholder if
  * that file/env var is missing. Ad tag markup below is the real snippet
- * from the Adsterra dashboard for the 320x50 Banner unit on sy-api.heinh.dev.
+ * from the Adsterra dashboard for the 320x50 Banner unit.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable

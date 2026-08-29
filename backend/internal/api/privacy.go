@@ -108,7 +108,7 @@ const privacyPolicyHTML = `<!doctype html>
   updated effective date.</p>
 
   <h2>Contact</h2>
-  <p class="contact">hhn@heinh.dev</p>
+  <p class="contact">privacy@malmah.fyi</p>
 </body>
 </html>
 `

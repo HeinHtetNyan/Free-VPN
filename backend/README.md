@@ -2,7 +2,7 @@
 
 Go control plane. See [`../docs/BACKEND.md`](../docs/BACKEND.md) for responsibilities, planned structure, and open decisions (DB choice, auth strategy) before adding real logic here.
 
-Deployed to production at `https://sy-api.heinh.dev` (Shared VPS, `/home/appbox/SY/backend/`). Pushes to `main` touching this directory auto-deploy via `.github/workflows/deploy.yml`.
+Deployed to production at `https://sy-api.malmah.fyi` (Shared VPS, `/home/appbox/SY/backend/`). Pushes to `main` touching this directory auto-deploy via `.github/workflows/deploy.yml`.
 
 ## Run
 

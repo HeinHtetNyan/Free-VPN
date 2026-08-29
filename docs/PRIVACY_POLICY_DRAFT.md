@@ -4,7 +4,7 @@ Written against what the app **actually does** as of 2026-08-27 (see `docs/DECIS
 
 Update this doc *and* `backend/internal/api/privacy.go` together whenever the underlying behavior changes (new ad network, real accounts added, analytics added, etc.) — it must always describe what the app actually does, not what it did when first written.
 
-Live URL (once pushed + deployed): **https://sy-api.heinh.dev/privacy**
+Live URL: **https://sy-api.malmah.fyi/privacy**
 
 ---
 
@@ -56,7 +56,7 @@ We may update this policy from time to time. Changes will be posted on this page
 
 ### Contact
 
-hhn@heinh.dev
+privacy@malmah.fyi
 
 ---
 

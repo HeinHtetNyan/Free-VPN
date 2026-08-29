@@ -23,7 +23,7 @@ set -euo pipefail
 
 FRIEND="${1:?usage: generate-friend-config.sh <friend-name> [location_id]}"
 LOCATION_ID="${2:-singapore}"
-API_BASE="${SY_API_BASE:-https://sy-api.heinh.dev}"
+API_BASE="${SY_API_BASE:-https://sy-api.malmah.fyi}"
 
 OUT_DIR="$(dirname "$0")/../out/friends"
 mkdir -p "$OUT_DIR"

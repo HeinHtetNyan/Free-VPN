@@ -24,15 +24,15 @@ Things still pending, mostly on the user's side. Check this before assuming some
 - [x] ~~Exact ad placement in the app flow~~ — resolved: fixed 320×50 inline banner on the connect screen, WebView-rendered (Adsterra has no native Android SDK). See `docs/MONETIZATION.md`.
 
 ## Backend hosting/deploy (updated 2026-08-26)
-- [x] ~~Public hostname for the backend~~ — resolved: `sy-api.heinh.dev`, via a dedicated Cloudflare Tunnel (id `97787a8f-a3e5-4a01-9d19-797e843790da`) on the existing `heinh.dev` zone/account, not `sawyuntech.com` (keeps it off the Saw Yun LLC brand, per the app-naming decision). DNS + tunnel config created via API; `tunnel/.env`'s token is in place locally, not yet running on the VPS.
-- [x] ~~Push, clone, and deploy~~ — done 2026-08-27: repo pushed, cloned onto `/home/appbox/SY/`, `backend/` + `tunnel/` both running. Verified for real: `https://sy-api.heinh.dev/health` → 200, and a live register→locations→connect smoke test produced a real peer on production `wg0`.
+- [x] ~~Public hostname for the backend~~ — resolved: `sy-api.malmah.fyi`, via a dedicated Cloudflare Tunnel (id `97787a8f-a3e5-4a01-9d19-797e843790da`), not `sawyuntech.com` (keeps it off the Saw Yun LLC brand, per the app-naming decision). See `docs/DECISIONS.md` 2026-08-30 for the hostname migration.
+- [x] ~~Push, clone, and deploy~~ — done 2026-08-27: repo pushed, cloned onto `/home/appbox/SY/`, `backend/` + `tunnel/` both running. Verified for real: backend `/health` → 200, and a live register→locations→connect smoke test produced a real peer on production `wg0`.
 - [x] ~~Add `VPS_DEPLOY_KEY` as a GitHub repo secret~~ — done and verified 2026-08-27: a real push triggered a real auto-deploy.
 
 ## Monetization (paid tier)
 - [ ] Whether/when to add a paid ad-free tier, and how (Google Play Billing is the natural fit for Android). Not designed yet — explicitly deferred.
 
 ## Play Store compliance
-- [x] ~~Privacy Policy — first draft~~ — see `docs/PRIVACY_POLICY_DRAFT.md`, published live at `https://sy-api.heinh.dev/privacy`. Decided 2026-08-27: publish as-is, no formal legal review — solo/early-access app, policy verified against actual code behavior.
+- [x] ~~Privacy Policy — first draft~~ — see `docs/PRIVACY_POLICY_DRAFT.md`, published live at `https://sy-api.malmah.fyi/privacy`. Decided 2026-08-27: publish as-is, no formal legal review — solo/early-access app, policy verified against actual code behavior.
 - [x] ~~Play Console Data Safety form~~ — drafted in `docs/PLAY_STORE_LISTING.md`, including the Adsterra/Advertising ID declaration (resolved 2026-08-27 — see that doc).
 - [x] ~~Feature graphic (1024×500)~~ — `docs/store-assets/feature-graphic-1024x500.png`.
 - [x] ~~Signed release build~~ — done 2026-08-27: real upload keystore generated (`android/release.keystore`, gitignored — passwords in `android/keystore.properties`, also backed up to `~/Desktop/backup/sy-vpn-release-key/`), wired into `android/app/build.gradle.kts`'s release `signingConfig`. **The user must back this up somewhere durable (password manager / private cloud storage) — losing it blocks future Play Store updates.**

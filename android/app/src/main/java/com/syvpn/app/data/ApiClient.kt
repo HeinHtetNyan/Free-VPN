@@ -95,7 +95,7 @@ class ApiClient(private val baseUrl: String) {
         Exception("API error $statusCode: $body")
 
     companion object {
-        // Real deployed control plane (docs/DECISIONS.md 2026-08-27).
-        const val DEV_BASE_URL = "https://sy-api.heinh.dev"
+        // Real deployed control plane (docs/DECISIONS.md).
+        const val DEV_BASE_URL = "https://sy-api.malmah.fyi"
     }
 }
