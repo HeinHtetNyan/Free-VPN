@@ -18,4 +18,4 @@ RUN mkdir -p $ANDROID_SDK_ROOT/cmdline-tools && \
     rm /tmp/cmdline-tools.zip
 
 RUN yes | sdkmanager --licenses > /dev/null && \
-    sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+    sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
