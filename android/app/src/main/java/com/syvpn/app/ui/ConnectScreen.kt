@@ -9,6 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,8 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -122,6 +122,7 @@ fun ConnectScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 20.dp),
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(24.dp),
@@ -169,11 +170,15 @@ fun ConnectScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            LazyColumn(
+            // Plain Column, not LazyColumn — this Column is itself
+            // scrollable (verticalScroll above), and a lazy list nested
+            // inside a scrollable parent fights it for scroll gestures.
+            // The server list is always small, so laziness buys nothing.
+            Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(locations) { location ->
+                locations.forEach { location ->
                     LocationRow(
                         location = location,
                         selected = location.id == selectedLocationId,
@@ -183,9 +188,22 @@ fun ConnectScreen(
                 }
             }
 
-            ReportIssueEntry(reportState, deviceContext, onSubmitReport, onDismissReport)
+            // Second ad placement — same plain Banner technique as the
+            // bottom bar (ADSTERRA_CONTENT_BANNER_ZONE_ID, a separate zone),
+            // gated behind the same showAd delay to avoid a double layout
+            // hitch on screen open.
+            if (showAd) {
+                AdsterraBannerAd(
+                    modifier = Modifier.fillMaxWidth(),
+                    zoneId = BuildConfig.ADSTERRA_CONTENT_BANNER_ZONE_ID,
+                    widthDp = 300,
+                    heightDp = 250,
+                )
+            } else {
+                Spacer(modifier = Modifier.fillMaxWidth().height(250.dp).background(DarkBackground))
+            }
 
-            Spacer(modifier = Modifier.weight(1f))
+            ReportIssueEntry(reportState, deviceContext, onSubmitReport, onDismissReport)
 
             // Sourced from BuildConfig.VERSION_NAME (android/app/build.gradle.kts
             // "versionName") — the one place that ever needs editing; this and

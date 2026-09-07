@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,6 +59,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Android 15+ (targetSdk 36) enforces edge-to-edge regardless; this
+        // opts in explicitly so status/nav bar icon contrast is set
+        // correctly instead of left to per-OEM default behavior.
+        enableEdgeToEdge()
 
         apiClient = ApiClient(ApiClient.DEV_BASE_URL)
         vpnManager = VpnConnectionManager(this)
@@ -109,6 +114,8 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             VpnAppTheme {
+                // Connect-tap interstitial is disabled for now — see
+                // onConnectClick()'s doc comment for why.
                 ConnectScreen(
                     locations = locations,
                     selectedLocationId = selectedLocationId,
@@ -176,8 +183,21 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch(Dispatchers.Main) { locationLatencies = results.toMap() }
     }
 
+    /** User-tapped entry point for Connect.
+     *
+     * A Native Banner interstitial (ads/ConnectInterstitialAd.kt) was wired
+     * in here and tested live, but the ad creative itself used a full-screen
+     * invisible overlay that hijacked any tap on the WebView into an
+     * external browser redirect (confirmed via logcat: an ACTION_VIEW intent
+     * fired to Chrome carrying our own zone key, with no real ad click) —
+     * not a rendering bug, abusive ad behavior. Left disconnected rather
+     * than shipped; see ConnectInterstitialAd.kt's doc comment. */
     private fun onConnectClick() {
         if (authToken == null || selectedLocationId == null) return
+        beginConnect()
+    }
+
+    private fun beginConnect() {
         connectionState = ConnectionUiState.Connecting
 
         // Ask for VPN permission (if not already granted) before ever

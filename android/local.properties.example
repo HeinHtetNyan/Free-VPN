@@ -3,5 +3,16 @@
 
 # sdk.dir=/path/to/Android/sdk   # usually auto-written by Android Studio
 
-# Adsterra publisher dashboard -> Banner ad unit -> zone ID
+# Adsterra publisher dashboard -> Banner ad unit -> zone ID (bottom bar)
 ADSTERRA_BANNER_ZONE_ID=your-real-zone-id-here
+
+# Adsterra publisher dashboard -> a second Banner ad unit -> zone ID
+# (in-content banner, below the location list)
+ADSTERRA_CONTENT_BANNER_ZONE_ID=your-real-zone-id-here
+
+# Adsterra publisher dashboard -> Native Banner ad unit, shown full-screen,
+# embedded in-app (WebView) as a skippable interstitial right after the user
+# taps Connect. Script URL + container id both come from the ad unit's
+# "Get Code" snippet.
+ADSTERRA_CONNECT_NATIVE_BANNER_SCRIPT_URL=https://example.com/your-real-zone-id/invoke.js
+ADSTERRA_CONNECT_NATIVE_BANNER_CONTAINER_ID=container-your-real-zone-id

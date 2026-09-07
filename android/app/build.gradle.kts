@@ -51,13 +51,28 @@ android {
         applicationId = "com.syvpn.app"
         minSdk = 26 // VpnService + WireGuard tunnel library both fine at this floor
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.1.3"
+        versionCode = 5
+        versionName = "0.1.4"
 
         buildConfigField(
             "String",
             "ADSTERRA_BANNER_ZONE_ID",
             "\"${adsterraProperty("ADSTERRA_BANNER_ZONE_ID")}\"",
+        )
+        buildConfigField(
+            "String",
+            "ADSTERRA_CONTENT_BANNER_ZONE_ID",
+            "\"${adsterraProperty("ADSTERRA_CONTENT_BANNER_ZONE_ID")}\"",
+        )
+        buildConfigField(
+            "String",
+            "ADSTERRA_CONNECT_NATIVE_BANNER_SCRIPT_URL",
+            "\"${adsterraProperty("ADSTERRA_CONNECT_NATIVE_BANNER_SCRIPT_URL")}\"",
+        )
+        buildConfigField(
+            "String",
+            "ADSTERRA_CONNECT_NATIVE_BANNER_CONTAINER_ID",
+            "\"${adsterraProperty("ADSTERRA_CONNECT_NATIVE_BANNER_CONTAINER_ID")}\"",
         )
     }
 

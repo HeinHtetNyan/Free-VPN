@@ -17,20 +17,28 @@ import com.syvpn.app.ui.theme.DarkBackground
  * served via a WebView loading their ad tag. Deliberately scoped to a
  * contained, fixed-size banner: per docs/PLAY_STORE_COMPLIANCE.md, Popunder
  * and Social Bar formats are NOT to be used in this app (Play Store
- * rejection risk) — only Banner/Native/Interstitial, rendered inline like
- * this, never as a full-screen takeover the user didn't tap into.
+ * rejection risk) — only plain Banner (this composable, proven safe by live
+ * testing), rendered inline, never as a full-screen takeover. Native Banner
+ * and Smartlink are explicitly NOT used for anything beyond this file's
+ * fixed-size iframe technique — see ads/ConnectInterstitialAd.kt's doc
+ * comment for why (a Native Banner zone hijacked arbitrary taps into
+ * external redirects when tried as a full-screen interstitial).
  *
- * Zone ID comes from BuildConfig.ADSTERRA_BANNER_ZONE_ID, sourced from
- * android/local.properties (gitignored, real credentials never committed —
- * see android/local.properties.example). Falls back to a placeholder if
- * that file/env var is missing. Ad tag markup below is the real snippet
- * from the Adsterra dashboard for the 320x50 Banner unit.
+ * zoneId/widthDp/heightDp default to the original bottom banner (320x50,
+ * BuildConfig.ADSTERRA_BANNER_ZONE_ID) so existing call sites don't need to
+ * change; pass a different zone/size for another placement (e.g. the
+ * content banner between the location list and "Report an issue").
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun AdsterraBannerAd(modifier: Modifier = Modifier) {
+fun AdsterraBannerAd(
+    modifier: Modifier = Modifier,
+    zoneId: String = BuildConfig.ADSTERRA_BANNER_ZONE_ID,
+    widthDp: Int = 320,
+    heightDp: Int = 50,
+) {
     AndroidView(
-        modifier = modifier.height(50.dp).background(DarkBackground),
+        modifier = modifier.height(heightDp.dp).background(DarkBackground),
         factory = { context ->
             WebView(context).apply {
                 // WebView paints opaque white by default — without this, the
@@ -44,13 +52,13 @@ fun AdsterraBannerAd(modifier: Modifier = Modifier) {
                 // window for a frame or two (well-documented WebView
                 // quirk, especially on MIUI). Software rendering avoids the
                 // separate layer entirely, at the cost of slightly slower
-                // ad rendering — an easy trade for a 50dp banner.
+                // ad rendering — an easy trade for a small banner.
                 setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 loadDataWithBaseURL(
                     "https://www.adsterra.com",
-                    adTagHtml(zoneId = BuildConfig.ADSTERRA_BANNER_ZONE_ID),
+                    adTagHtml(zoneId = zoneId, widthPx = widthDp, heightPx = heightDp),
                     "text/html",
                     "UTF-8",
                     null,
@@ -60,14 +68,14 @@ fun AdsterraBannerAd(modifier: Modifier = Modifier) {
     )
 }
 
-private fun adTagHtml(zoneId: String): String = """
+private fun adTagHtml(zoneId: String, widthPx: Int, heightPx: Int): String = """
     <html><body style="margin:0;padding:0;background:#0A0F1C;">
     <script>
     atOptions = {
     'key' : '$zoneId',
     'format' : 'iframe',
-    'height' : 50,
-    'width' : 320,
+    'height' : $heightPx,
+    'width' : $widthPx,
     'params' : {}
     };
     </script>
