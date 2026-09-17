@@ -113,6 +113,45 @@ func TestPeersForUser_UnknownUserReturnsEmpty(t *testing.T) {
 	}
 }
 
+func TestDeletePeer_RemovesOnlyThatRow(t *testing.T) {
+	s := newTestPeerStore(t)
+
+	_, _ = s.AllocateIP("pubkey-a", "user-1", "loc-1")
+	keptIP, _ := s.AllocateIP("pubkey-b", "user-1", "loc-1")
+
+	if err := s.DeletePeer("pubkey-a"); err != nil {
+		t.Fatalf("DeletePeer: %v", err)
+	}
+
+	got, err := s.PeersForUser("user-1")
+	if err != nil {
+		t.Fatalf("PeersForUser: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 remaining peer after delete, got %d: %+v", len(got), got)
+	}
+	if got[0].PublicKey != "pubkey-b" || got[0].AssignedIP != keptIP {
+		t.Fatalf("expected pubkey-b/%s to survive, got %+v", keptIP, got[0])
+	}
+}
+
+func TestDeletePeer_UnknownKeyIsNoop(t *testing.T) {
+	s := newTestPeerStore(t)
+	_, _ = s.AllocateIP("pubkey-a", "user-1", "loc-1")
+
+	if err := s.DeletePeer("never-allocated"); err != nil {
+		t.Fatalf("DeletePeer on unknown key should be a no-op, got: %v", err)
+	}
+
+	got, err := s.PeersForUser("user-1")
+	if err != nil {
+		t.Fatalf("PeersForUser: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected the real peer to be untouched, got %d rows", len(got))
+	}
+}
+
 func TestLoadLocations(t *testing.T) {
 	locs, err := LoadLocations()
 	if err != nil {

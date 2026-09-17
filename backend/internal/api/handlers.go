@@ -84,14 +84,21 @@ func (s *Server) issuePeerConfig(loc servers.Location, ownerID string) (config, 
 // past its next /connect call, so once a fresh peer is live, any earlier
 // ones for the same owner are just dead weight left registered on the
 // interface (see docs/DECISIONS.md: this is what filled the admin dashboard
-// with dozens of never-connected ghost peers). Skips "friend:" owners:
-// those are manually admin-issued, one config per issuance, and an admin
-// may reissue the same label for a different device — reusing ownerID
-// there would risk revoking a friend's still-in-use config out from under
-// them, so friends stay purely admin-managed via /admin/friends/revoke.
-// Best-effort like RegisterPeer above: a lookup or revoke failure here
-// doesn't fail the /connect request, since the new peer already works
-// regardless.
+// with dozens of never-connected ghost peers). Once a peer is confirmed
+// removed from the live interface, its peer_allocations row is deleted too
+// (see PeerStore.DeletePeer) — otherwise a single reconnecting device piles
+// up one row per /connect forever (seen in production: one real device
+// racked up 50 rows in 9 days), inflating both the DB and stats.TotalDevices
+// with rows nothing is still using. A row is only left behind when the live
+// revoke itself failed, so it stays visible for a retry instead of quietly
+// disappearing while possibly still registered on the interface. Skips
+// "friend:" owners: those are manually admin-issued, one config per
+// issuance, and an admin may reissue the same label for a different device
+// — reusing ownerID there would risk revoking a friend's still-in-use
+// config out from under them, so friends stay purely admin-managed via
+// /admin/friends/revoke. Best-effort like RegisterPeer above: a lookup or
+// revoke failure here doesn't fail the /connect request, since the new peer
+// already works regardless.
 func (s *Server) revokeStalePeers(ownerID, currentPublicKey string) {
 	if ownerID == "" || strings.HasPrefix(ownerID, "friend:") {
 		return
@@ -107,6 +114,10 @@ func (s *Server) revokeStalePeers(ownerID, currentPublicKey string) {
 		}
 		if err := servers.RemovePeer(s.WireGuardIfaceName, p.PublicKey); err != nil {
 			log.Printf("warning: could not revoke stale peer %s for %s: %v", p.PublicKey, ownerID, err)
+			continue
+		}
+		if err := s.Peers.DeletePeer(p.PublicKey); err != nil {
+			log.Printf("warning: could not delete stale peer allocation %s for %s: %v", p.PublicKey, ownerID, err)
 		}
 	}
 }

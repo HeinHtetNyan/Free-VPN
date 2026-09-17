@@ -59,9 +59,9 @@ func RegisterPeer(interfaceName, clientPublicKeyBase64, allowedIP string, amnezi
 // RemovePeer drops a peer from the live WireGuard interface so it can no
 // longer connect or reconnect — the server rejects its handshake outright
 // from this point on, same as it would for a public key it never knew
-// about. Does not touch peer_allocations (see PeerStore: allocations are an
-// append-only historical record, not reclaimed), so AllPeers/stats keep the
-// row but it simply stops reporting connected once the interface drops it.
+// about. Does not itself touch peer_allocations — callers that are
+// superseding this peer with a fresh one (see api.revokeStalePeers) delete
+// its row separately once this call confirms the live side is gone.
 func RemovePeer(interfaceName, clientPublicKeyBase64 string) error {
 	client, err := wgctrl.New()
 	if err != nil {

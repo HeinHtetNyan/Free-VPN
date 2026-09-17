@@ -142,8 +142,10 @@ func TestFullFlow_RegisterListConnect(t *testing.T) {
 // pileup: reconnecting the same device now tries to revoke its previous
 // peer (see revokeStalePeers), but that revoke runs against the test's
 // deliberately bogus WireGuard interface and always fails — /connect must
-// still succeed (best-effort, like RegisterPeer), and peer_allocations must
-// still keep both historical rows (append-only, see PeerStore).
+// still succeed (best-effort, like RegisterPeer). Because the live revoke
+// never succeeds here, the stale row is never deleted either (revokeStalePeers
+// only drops a peer_allocations row once its live removal is confirmed), so
+// both historical rows are expected to remain.
 func TestConnect_Reconnect_RevokeIsBestEffort(t *testing.T) {
 	srv := newTestServer(t)
 	router := srv.Router()

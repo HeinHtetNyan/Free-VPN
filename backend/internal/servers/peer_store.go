@@ -103,11 +103,11 @@ func (p *PeerStore) Close() error {
 // (network address and a reserved slot for the server itself). userID and
 // locationID attribute the peer for usage reporting (see StatsReporter) —
 // every /connect call generates a brand new keypair (no key reuse across
-// reconnects), so a single user can accumulate many peer rows over time.
-// This is still an append-only historical record even though api.issuePeerConfig
-// now revokes a user's previous peer from the live WireGuard interface on
-// each reconnect (see PeersForUser) — only the newest row per user stays
-// registered there, the older rows just stop reporting live stats.
+// reconnects). api.issuePeerConfig revokes a user's previous peer from the
+// live WireGuard interface on each reconnect and then deletes its row here
+// too (see DeletePeer) — a row only outlives its reconnect when that live
+// revocation itself failed, so it stays around as a visible, retryable
+// leftover rather than being silently dropped while possibly still live.
 func (p *PeerStore) AllocateIP(publicKey, userID, locationID string) (string, error) {
 	var existing string
 	err := p.db.QueryRow(`SELECT assigned_ip FROM peer_allocations WHERE public_key = ?`, publicKey).Scan(&existing)
@@ -190,6 +190,18 @@ func (p *PeerStore) PeersForUser(userID string) ([]PeerInfo, error) {
 		out = append(out, pi)
 	}
 	return out, rows.Err()
+}
+
+// DeletePeer removes a single peer_allocations row by public key. Called by
+// api.revokeStalePeers once a superseded peer has been confirmed gone from
+// the live WireGuard interface — nothing of value survives keeping the row
+// past that point, since the peer's byte counters live on the interface
+// itself and reset to zero for whatever new keypair replaces it.
+func (p *PeerStore) DeletePeer(publicKey string) error {
+	if _, err := p.db.Exec(`DELETE FROM peer_allocations WHERE public_key = ?`, publicKey); err != nil {
+		return fmt.Errorf("deleting peer allocation: %w", err)
+	}
+	return nil
 }
 
 func sequenceToIP(seq int64, subnetBase string) string {
