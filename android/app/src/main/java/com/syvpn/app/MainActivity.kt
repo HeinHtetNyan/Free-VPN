@@ -10,6 +10,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
+import com.google.android.gms.ads.MobileAds
+import com.syvpn.app.ads.ConnectInterstitialAdManager
 import com.syvpn.app.data.ApiClient
 import com.syvpn.app.data.DeviceContext
 import com.syvpn.app.data.DeviceIdentity
@@ -35,6 +37,7 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var apiClient: ApiClient
     private lateinit var vpnManager: VpnConnectionManager
+    private lateinit var connectInterstitialAdManager: ConnectInterstitialAdManager
     private var authToken: String? = null
 
     private val vpnPermissionLauncher = registerForActivityResult(
@@ -63,6 +66,12 @@ class MainActivity : ComponentActivity() {
         // opts in explicitly so status/nav bar icon contrast is set
         // correctly instead of left to per-OEM default behavior.
         enableEdgeToEdge()
+
+        // Init is fire-and-forget — MobileAds queues ad requests internally
+        // until it completes, so nothing here needs to wait on the callback.
+        MobileAds.initialize(this)
+        connectInterstitialAdManager = ConnectInterstitialAdManager(this)
+        connectInterstitialAdManager.load()
 
         apiClient = ApiClient(ApiClient.DEV_BASE_URL)
         vpnManager = VpnConnectionManager(this)
@@ -114,8 +123,6 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             VpnAppTheme {
-                // Connect-tap interstitial is disabled for now — see
-                // onConnectClick()'s doc comment for why.
                 ConnectScreen(
                     locations = locations,
                     selectedLocationId = selectedLocationId,
@@ -183,18 +190,14 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch(Dispatchers.Main) { locationLatencies = results.toMap() }
     }
 
-    /** User-tapped entry point for Connect.
-     *
-     * A Native Banner interstitial (ads/ConnectInterstitialAd.kt) was wired
-     * in here and tested live, but the ad creative itself used a full-screen
-     * invisible overlay that hijacked any tap on the WebView into an
-     * external browser redirect (confirmed via logcat: an ACTION_VIEW intent
-     * fired to Chrome carrying our own zone key, with no real ad click) —
-     * not a rendering bug, abusive ad behavior. Left disconnected rather
-     * than shipped; see ConnectInterstitialAd.kt's doc comment. */
+    /** User-tapped entry point for Connect. Shows the AdMob interstitial
+     * first if one's ready (see ConnectInterstitialAdManager's doc comment
+     * for why this replaced the disconnected Adsterra attempt); either way,
+     * beginConnect() always runs afterward — Connect is never blocked on ad
+     * availability. */
     private fun onConnectClick() {
         if (authToken == null || selectedLocationId == null) return
-        beginConnect()
+        connectInterstitialAdManager.showIfReady(this) { beginConnect() }
     }
 
     private fun beginConnect() {

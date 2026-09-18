@@ -15,6 +15,14 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/AppTheme">
 
+        <!-- Required by the Google Mobile Ads SDK regardless of which ad
+             unit is shown — value injected from local.properties via
+             manifestPlaceholders (see app/build.gradle.kts), same treatment
+             as the Adsterra zone IDs. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${admobAppId}" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">

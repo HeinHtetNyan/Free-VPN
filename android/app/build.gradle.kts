@@ -17,6 +17,12 @@ val localProperties = Properties().apply {
 fun adsterraProperty(key: String): String =
     (localProperties.getProperty(key) ?: System.getenv(key) ?: "ADSTERRA_ZONE_ID_PLACEHOLDER")
 
+// Same treatment for AdMob's publisher/ad unit IDs — not as sensitive as an
+// API secret, but kept out of source for consistency with the Adsterra IDs
+// above and so a fork/clone doesn't ship this app's real IDs by accident.
+fun admobProperty(key: String): String =
+    (localProperties.getProperty(key) ?: System.getenv(key) ?: "ADMOB_ID_PLACEHOLDER")
+
 // Release upload key — a real secret, never committed. Kept in
 // android/keystore.properties (gitignored, see keystore.properties.example)
 // rather than hardcoded like the debug config above.
@@ -64,16 +70,21 @@ android {
             "ADSTERRA_CONTENT_BANNER_ZONE_ID",
             "\"${adsterraProperty("ADSTERRA_CONTENT_BANNER_ZONE_ID")}\"",
         )
+        // ADSTERRA_CONNECT_NATIVE_BANNER_SCRIPT_URL/CONTAINER_ID used to live
+        // here for the disabled Adsterra Connect interstitial (tap-hijack
+        // bug, never shipped) — removed along with that file; the Connect
+        // interstitial is now AdMob's, below.
+
+        // AdMob, added alongside Adsterra (not replacing it) — see
+        // ads/ConnectInterstitialAdManager.kt. The App ID has to reach
+        // AndroidManifest.xml as a <meta-data> value, which build config
+        // fields can't do, hence the manifestPlaceholders entry too.
         buildConfigField(
             "String",
-            "ADSTERRA_CONNECT_NATIVE_BANNER_SCRIPT_URL",
-            "\"${adsterraProperty("ADSTERRA_CONNECT_NATIVE_BANNER_SCRIPT_URL")}\"",
+            "ADMOB_CONNECT_INTERSTITIAL_UNIT_ID",
+            "\"${admobProperty("ADMOB_CONNECT_INTERSTITIAL_UNIT_ID")}\"",
         )
-        buildConfigField(
-            "String",
-            "ADSTERRA_CONNECT_NATIVE_BANNER_CONTAINER_ID",
-            "\"${adsterraProperty("ADSTERRA_CONNECT_NATIVE_BANNER_CONTAINER_ID")}\"",
-        )
+        manifestPlaceholders["admobAppId"] = admobProperty("ADMOB_APP_ID")
     }
 
     signingConfigs {
@@ -152,6 +163,11 @@ dependencies {
     // and ../../docs/MOBILE.md for why this over a community Flutter plugin.
     // Was com.wireguard.android:tunnel:1.0.20230706 (plain WireGuard) before.
     implementation("com.zaneschepke:amneziawg-android:2.3.7")
+
+    // AdMob — Connect-flow interstitial only for now, alongside (not
+    // replacing) the existing Adsterra banners. See
+    // ads/ConnectInterstitialAdManager.kt.
+    implementation("com.google.android.gms:play-services-ads:25.5.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

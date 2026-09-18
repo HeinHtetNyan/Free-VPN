@@ -10,9 +10,8 @@ ADSTERRA_BANNER_ZONE_ID=your-real-zone-id-here
 # (in-content banner, below the location list)
 ADSTERRA_CONTENT_BANNER_ZONE_ID=your-real-zone-id-here
 
-# Adsterra publisher dashboard -> Native Banner ad unit, shown full-screen,
-# embedded in-app (WebView) as a skippable interstitial right after the user
-# taps Connect. Script URL + container id both come from the ad unit's
-# "Get Code" snippet.
-ADSTERRA_CONNECT_NATIVE_BANNER_SCRIPT_URL=https://example.com/your-real-zone-id/invoke.js
-ADSTERRA_CONNECT_NATIVE_BANNER_CONTAINER_ID=container-your-real-zone-id
+# AdMob console -> Apps -> App settings -> App ID
+ADMOB_APP_ID=ca-app-pub-0000000000000000~0000000000
+
+# AdMob console -> Apps -> Ad units -> the Connect-flow interstitial unit
+ADMOB_CONNECT_INTERSTITIAL_UNIT_ID=ca-app-pub-0000000000000000/0000000000
