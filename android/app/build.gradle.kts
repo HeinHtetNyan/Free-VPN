@@ -57,8 +57,8 @@ android {
         applicationId = "com.syvpn.app"
         minSdk = 26 // VpnService + WireGuard tunnel library both fine at this floor
         targetSdk = 36
-        versionCode = 6
-        versionName = "0.1.5"
+        versionCode = 7
+        versionName = "0.1.6"
 
         buildConfigField(
             "String",
@@ -112,8 +112,21 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Was false — Play Console flagged release 6 (0.1.5) for <25%
+            // DEX obfuscation because R8 never ran. amneziawg-android and
+            // play-services-ads both ship their own consumer proguard rules
+            // (picked up automatically), and app code has no reflection/JNI
+            // of its own needing extra keep rules.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Play Console flagged releases 5 and 6 for missing native debug
+            // symbols (amneziawg-android ships .so libs) — this makes Gradle
+            // produce them automatically so future crash reports on native
+            // code are readable instead of raw addresses.
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
