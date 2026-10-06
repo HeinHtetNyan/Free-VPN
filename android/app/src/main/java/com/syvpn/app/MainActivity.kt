@@ -62,6 +62,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Release-only anti-tamper check (no-op in debug); block + exit.
+        if (TamperGuard.isThreatDetected(this)) {
+            finishAndRemoveTask()
+            android.os.Process.killProcess(android.os.Process.myPid())
+            return
+        }
         // Android 15+ (targetSdk 36) enforces edge-to-edge regardless; this
         // opts in explicitly so status/nav bar icon contrast is set
         // correctly instead of left to per-OEM default behavior.
@@ -276,6 +282,14 @@ class MainActivity : ComponentActivity() {
                     connectionState = ConnectionUiState.Error(e.message ?: e.toString())
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (TamperGuard.isThreatDetected(this)) {
+            finishAndRemoveTask()
+            android.os.Process.killProcess(android.os.Process.myPid())
         }
     }
 }

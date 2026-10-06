@@ -124,7 +124,16 @@ func main() {
 	bindHost := os.Getenv("BIND_HOST")
 	addr := bindHost + ":" + port
 	log.Printf("control plane listening on %s (%d locations loaded)", addr, len(locations))
-	if err := http.ListenAndServe(addr, server.Router()); err != nil {
+	// Timeouts stop slow-loris style connections from holding sockets open.
+	httpServer := &http.Server{
+		Addr:              addr,
+		Handler:           server.Router(),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	if err := httpServer.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }

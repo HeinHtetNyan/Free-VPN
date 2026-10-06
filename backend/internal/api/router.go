@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"sy-vpn-backend/internal/auth"
 )
@@ -11,6 +12,11 @@ import (
 // Go 1.22+'s method-aware patterns) is simpler than adding a dependency.
 func (s *Server) Router() http.Handler {
 	mux := http.NewServeMux()
+	// Per-user limits (created per Router so each server/test has its own state).
+	// /connect: 30/min burst 30 is far above normal reconnect behaviour.
+	// /report: burst 5, then 1 per 12s (5/min sustained), plenty for a human.
+	limitConnect := newUserLimiter(30, 2*time.Second)
+	limitReport := newUserLimiter(5, 12*time.Second)
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -21,9 +27,9 @@ func (s *Server) Router() http.Handler {
 
 	mux.HandleFunc("POST /auth/register", RateLimitRegister(s.handleRegister))
 	mux.HandleFunc("GET /locations", auth.Require(s.Users, s.handleListLocations))
-	mux.HandleFunc("POST /connect", auth.Require(s.Users, s.handleConnect))
+	mux.HandleFunc("POST /connect", auth.Require(s.Users, limitConnect.wrap(s.handleConnect)))
 	mux.HandleFunc("GET /stats", auth.Require(s.Users, s.handleStats))
-	mux.HandleFunc("POST /report", auth.Require(s.Users, s.handleReport))
+	mux.HandleFunc("POST /report", auth.Require(s.Users, limitReport.wrap(s.handleReport)))
 
 	// Admin-only: called by the Activation-Licenses admin backend, never by
 	// the app itself — see internal/auth.RequireAdminToken and

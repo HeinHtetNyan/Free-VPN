@@ -1,3 +1,6 @@
+import java.io.File
+import java.security.KeyStore
+import java.security.MessageDigest
 import java.util.Properties
 
 plugins {
@@ -32,6 +35,52 @@ val keystoreProperties = Properties().apply {
 }
 val hasReleaseSigning = keystoreProperties.getProperty("storePassword") != null
 
+// Anti-tamper: SHA-256 of the release (upload) signing cert, computed from
+// the keystore at configure time (password never printed) and baked into
+// BuildConfig for TamperGuard. PLAY_SIGNING_SHA256 (optional, local.properties
+// or env, hex, no colons) is the Play App Signing cert from Play Console >
+// App integrity; when set, signature mismatch blocks the app everywhere.
+fun certSha256Hex(storeFile: File, storePass: String, alias: String): String {
+    val ks = try {
+        KeyStore.getInstance(storeFile, storePass.toCharArray())
+    } catch (e: Exception) {
+        throw GradleException("Could not read release keystore: ${e.javaClass.simpleName}")
+    }
+    val cert = ks.getCertificate(alias) ?: throw GradleException("Release key alias not found in keystore")
+    return MessageDigest.getInstance("SHA-256").digest(cert.encoded)
+        .joinToString("") { "%02x".format(it) }
+}
+val releaseCertSha256: String = if (hasReleaseSigning) {
+    certSha256Hex(
+        rootProject.file(keystoreProperties.getProperty("storeFile")),
+        keystoreProperties.getProperty("storePassword"),
+        keystoreProperties.getProperty("keyAlias"),
+    )
+} else ""
+val playSigningSha256: String =
+    (localProperties.getProperty("PLAY_SIGNING_SHA256") ?: System.getenv("PLAY_SIGNING_SHA256") ?: "")
+        .replace(":", "").lowercase().trim()
+
+// Release builds must NEVER be produced without the real release key (no
+// silent unsigned/debug fallback). Fail the build for any release
+// assemble/bundle/package/sign task if keystore.properties is missing/incomplete.
+gradle.taskGraph.whenReady {
+    val releaseTask = allTasks.firstOrNull {
+        it.project == project && Regex("^(assemble|bundle|package|sign|validateSigning).*Release.*").matches(it.name)
+    }
+    if (releaseTask != null) {
+        val required = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+        val missing = required.filter { keystoreProperties.getProperty(it).isNullOrBlank() }
+        val ksFile = keystoreProperties.getProperty("storeFile")?.let { rootProject.file(it) }
+        if (missing.isNotEmpty() || ksFile == null || !ksFile.exists()) {
+            throw GradleException(
+                "Release signing is not configured (keystore.properties missing keys $missing or keystore file absent). " +
+                    "Refusing to build ${releaseTask.name} without the release key.",
+            )
+        }
+    }
+}
+
 android {
     namespace = "com.syvpn.app"
     // Bumped from 35: amneziawg-android 2.3.7's androidx.core-ktx 1.17.0
@@ -57,8 +106,8 @@ android {
         applicationId = "com.syvpn.app"
         minSdk = 26 // VpnService + WireGuard tunnel library both fine at this floor
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.1.6"
+        versionCode = 8
+        versionName = "0.1.7"
 
         buildConfigField(
             "String",
@@ -85,6 +134,10 @@ android {
             "\"${admobProperty("ADMOB_CONNECT_INTERSTITIAL_UNIT_ID")}\"",
         )
         manifestPlaceholders["admobAppId"] = admobProperty("ADMOB_APP_ID")
+
+        // Anti-tamper inputs for TamperGuard (release builds only act on them).
+        buildConfigField("String", "TAMPER_RELEASE_CERT_SHA256", "\"$releaseCertSha256\"")
+        buildConfigField("String", "TAMPER_PLAY_CERT_SHA256", "\"$playSigningSha256\"")
     }
 
     signingConfigs {
@@ -127,6 +180,8 @@ android {
             ndk {
                 debugSymbolLevel = "FULL"
             }
+            // Never falls back to debug: the taskGraph guard above throws for
+            // release tasks when this config is absent.
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"sy-vpn-backend/internal/auth"
@@ -122,6 +123,22 @@ func (s *Server) revokeStalePeers(ownerID, currentPublicKey string) {
 	}
 }
 
+// maxBodyBytes caps every JSON request body (all real requests are well under 2KB).
+const maxBodyBytes = 64 << 10
+
+// decodeJSON reads a size-limited JSON body into v.
+func decodeJSON(w http.ResponseWriter, r *http.Request, v any) error {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+	return json.NewDecoder(r.Body).Decode(v)
+}
+
+var deviceIDPattern = regexp.MustCompile(`^[A-Za-z0-9._:-]{8,128}$`)
+
+const (
+	maxReportMessage = 2000
+	maxReportField   = 100
+)
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -141,8 +158,13 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		DeviceID string `json:"device_id"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.DeviceID == "" {
+	if err := decodeJSON(w, r, &body); err != nil || body.DeviceID == "" {
 		writeError(w, http.StatusBadRequest, "device_id is required")
+		return
+	}
+
+	if !deviceIDPattern.MatchString(body.DeviceID) {
+		writeError(w, http.StatusBadRequest, "device_id has an invalid format")
 		return
 	}
 
@@ -190,7 +212,7 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		LocationID string `json:"location_id"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.LocationID == "" {
+	if err := decodeJSON(w, r, &body); err != nil || body.LocationID == "" {
 		writeError(w, http.StatusBadRequest, "location_id is required")
 		return
 	}
@@ -236,9 +258,20 @@ func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
 		OsVersion   string `json:"os_version"`
 		AppVersion  string `json:"app_version"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Message == "" {
+	if err := decodeJSON(w, r, &body); err != nil || body.Message == "" {
 		writeError(w, http.StatusBadRequest, "message is required")
 		return
+	}
+
+	if len(body.Message) > maxReportMessage {
+		writeError(w, http.StatusBadRequest, "message is too long")
+		return
+	}
+	for _, f := range []string{body.IspName, body.NetworkType, body.DeviceModel, body.OsVersion, body.AppVersion} {
+		if len(f) > maxReportField {
+			writeError(w, http.StatusBadRequest, "a report field is too long")
+			return
+		}
 	}
 
 	if s.Reports == nil {
@@ -301,7 +334,7 @@ func (s *Server) handleAdminCreateFriend(w http.ResponseWriter, r *http.Request)
 		Label      string `json:"label"`
 		LocationID string `json:"location_id"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := decodeJSON(w, r, &body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -352,7 +385,7 @@ func (s *Server) handleAdminRevokeFriend(w http.ResponseWriter, r *http.Request)
 	var body struct {
 		PublicKey string `json:"public_key"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.PublicKey == "" {
+	if err := decodeJSON(w, r, &body); err != nil || body.PublicKey == "" {
 		writeError(w, http.StatusBadRequest, "public_key is required")
 		return
 	}
